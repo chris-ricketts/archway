@@ -1,0 +1,95 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: torii-1-node-1-external
+  namespace: archway
+  labels:
+    app: torii-1-node-1-external
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 26660
+    targetPort: 26660
+---
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: torii-1-node-1-external
+  namespace: archway
+subsets:
+  - addresses:
+    - ip: 35.184.247.99
+    ports: 
+      - name: metrics
+        port: 26660
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    release: monitoring-stack
+  name: torii-1-node-1-external
+  namespace: archway
+spec:
+  namespaceSelector:
+    matchNames:
+    - archway
+  endpoints:
+  - path: /metrics
+    port: metrics
+    interval: 30s
+  selector:
+    matchLabels:
+      app: torii-1-node-1-external
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: torii-1-node-1-external-node-exporter
+  namespace: archway
+  labels:
+    app: torii-1-node-1-external-node-exporter
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 9100
+    targetPort: 9100
+---
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: torii-1-node-1-external-node-exporter
+  namespace: archway
+subsets:
+  - addresses:
+    - ip: 35.184.247.99
+    ports: 
+      - name: metrics
+        port: 9100
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    release: monitoring-stack
+  name: torii-1-node-1-external-node-exporter
+  namespace: archway
+spec:
+  namespaceSelector:
+    matchNames:
+    - archway
+  endpoints:
+  - path: /metrics
+    port: metrics
+    interval: 30s
+    relabelings:
+    - targetLabel: job
+      action: replace
+      replacement: node-exporter
+  jobLabel: node-exporter
+  selector:
+    matchLabels:
+      app: torii-1-node-1-external-node-exporter
+
