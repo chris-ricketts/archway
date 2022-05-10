@@ -7,7 +7,9 @@ const (
 
 	ModuleName = types.ModuleName
 
-	ContractRewardCollector = types.ContractRewardCollector
+	GasRewardCollector = types.GasRewardCollector
+
+	InflationRewardAccumulator = types.InflationRewardAccumulator
 
 	GasTrackingQueryRequestMagicString = types.GasTrackingQueryRequestMagicString
 

@@ -8,6 +8,7 @@
     - [BlockGasTracking](#archway.gastracker.v1.BlockGasTracking)
     - [ContractGasTracking](#archway.gastracker.v1.ContractGasTracking)
     - [ContractInstanceMetadata](#archway.gastracker.v1.ContractInstanceMetadata)
+    - [ContractInstanceSystemMetadata](#archway.gastracker.v1.ContractInstanceSystemMetadata)
     - [ContractRewardCalculationEvent](#archway.gastracker.v1.ContractRewardCalculationEvent)
     - [GenesisState](#archway.gastracker.v1.GenesisState)
     - [LeftOverRewardEntry](#archway.gastracker.v1.LeftOverRewardEntry)
@@ -93,6 +94,21 @@ Contract instance metadata
 
 
 
+<a name="archway.gastracker.v1.ContractInstanceSystemMetadata"></a>
+
+### ContractInstanceSystemMetadata
+Contract instance system level metadata, not updatable externally.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `inflation_balance` | [cosmos.base.v1beta1.DecCoin](#cosmos.base.v1beta1.DecCoin) | repeated | Inflation reward balance of this contract instance. |
+
+
+
+
+
+
 <a name="archway.gastracker.v1.ContractRewardCalculationEvent"></a>
 
 ### ContractRewardCalculationEvent
@@ -103,7 +119,7 @@ Event emitted when contract reward is calculated
 | ----- | ---- | ----- | ----------- |
 | `contract_address` | [string](#string) |  |  |
 | `gas_consumed` | [uint64](#uint64) |  |  |
-| `inflation_rewards` | [cosmos.base.v1beta1.DecCoin](#cosmos.base.v1beta1.DecCoin) |  |  |
+| `inflation_rewards` | [cosmos.base.v1beta1.DecCoin](#cosmos.base.v1beta1.DecCoin) | repeated |  |
 | `contract_rewards` | [cosmos.base.v1beta1.DecCoin](#cosmos.base.v1beta1.DecCoin) | repeated |  |
 | `metadata` | [ContractInstanceMetadata](#archway.gastracker.v1.ContractInstanceMetadata) |  |  |
 

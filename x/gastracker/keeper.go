@@ -28,6 +28,9 @@ type GasTrackingKeeper interface {
 	AddPendingChangeForContractMetadata(ctx sdk.Context, sender sdk.AccAddress, address sdk.AccAddress, newMetadata gstTypes.ContractInstanceMetadata) error
 	CommitPendingContractMetadata(ctx sdk.Context) (int, error)
 
+	GetContractSystemMetadata(ctx sdk.Context, address sdk.AccAddress) (gstTypes.ContractInstanceSystemMetadata, error)
+	SetContractSystemMetadata(ctx sdk.Context, address sdk.AccAddress, metadata gstTypes.ContractInstanceSystemMetadata) error
+
 	CreateOrMergeLeftOverRewardEntry(ctx sdk.Context, rewardAddress sdk.AccAddress, contractRewards sdk.DecCoins, leftOverThreshold uint64) (sdk.Coins, error)
 	GetLeftOverRewardEntry(ctx sdk.Context, rewardAddress sdk.AccAddress) (gstTypes.LeftOverRewardEntry, error)
 
@@ -420,6 +423,34 @@ func (k *Keeper) CommitPendingContractMetadata(ctx sdk.Context) (int, error) {
 	}
 
 	return len(keysToBeDeleted), nil
+}
+
+func (k Keeper) GetContractSystemMetadata(ctx sdk.Context, address sdk.AccAddress) (gstTypes.ContractInstanceSystemMetadata, error) {
+	var systemMetadata gstTypes.ContractInstanceSystemMetadata
+	store := ctx.KVStore(k.key)
+	bz := store.Get(gstTypes.GetContractInstanceSystemMetadataKey(address.String()))
+	if bz == nil {
+		return systemMetadata, gstTypes.ErrContractInstanceSystemMetadataNotFound
+	}
+
+	err := k.appCodec.Unmarshal(bz, &systemMetadata)
+	if err != nil {
+		return systemMetadata, err
+	}
+
+	return systemMetadata, nil
+}
+
+func (k Keeper) SetContractSystemMetadata(ctx sdk.Context, address sdk.AccAddress, metadata gstTypes.ContractInstanceSystemMetadata) error {
+	store := ctx.KVStore(k.key)
+
+	bz, err := k.appCodec.Marshal(&metadata)
+	if err != nil {
+		return err
+	}
+
+	store.Set(gstTypes.GetContractInstanceSystemMetadataKey(address.String()), bz)
+	return nil
 }
 
 func (k *Keeper) TrackNewBlock(ctx sdk.Context) error {

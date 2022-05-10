@@ -26,4 +26,6 @@ var (
 	ErrNoPermissionToSetMetadata = sdkErrors.Register(DefaultCodespace, 9, "Sender does not have permission to set metadata")
 
 	ErrInvalidSetContractMetadataRequest = sdkErrors.Register(DefaultCodespace, 10, "Invalid request to set metadata")
+
+	ErrContractInstanceSystemMetadataNotFound = sdkErrors.Register(DefaultCodespace, 11, "Contract instance system metadata not found")
 )
