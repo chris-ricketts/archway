@@ -427,11 +427,15 @@ func (k *Keeper) CommitPendingContractMetadata(ctx sdk.Context) (int, error) {
 }
 
 func (k Keeper) GetContractSystemMetadata(ctx sdk.Context, address sdk.AccAddress) (gstTypes.ContractInstanceSystemMetadata, error) {
-	var systemMetadata gstTypes.ContractInstanceSystemMetadata
+	systemMetadata := gstTypes.ContractInstanceSystemMetadata{
+		InflationBalance: make([]*sdk.DecCoin, 0),
+	}
 	store := ctx.KVStore(k.key)
 	bz := store.Get(gstTypes.GetContractInstanceSystemMetadataKey(address.String()))
+
+	// Give default value in case no system metadata exists
 	if bz == nil {
-		return systemMetadata, gstTypes.ErrContractInstanceSystemMetadataNotFound
+		return systemMetadata, nil
 	}
 
 	err := k.appCodec.Unmarshal(bz, &systemMetadata)
