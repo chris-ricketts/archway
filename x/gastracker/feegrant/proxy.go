@@ -14,7 +14,7 @@ import (
 type ProxyFeeGrantKeeper struct {
 	underlyingFeeGrantKeeper ante.FeegrantKeeper
 	wasmKeeper               wasm.Keeper
-	gastrackingKeeper        gastracker.Keeper
+	gastrackingKeeper        gastracker.GasTrackingKeeper
 	accountKeeper            keeper.AccountKeeper
 }
 
@@ -136,7 +136,7 @@ func (p *ProxyFeeGrantKeeper) UseGrantedFees(ctx sdk.Context, granter, grantee s
 	return p.gastrackingKeeper.MarkCurrentTxNonEligibleForReward(ctx)
 }
 
-func NewProxyFeeGrantKeeper(underlyingKeeper ante.FeegrantKeeper, wasmKeeper wasm.Keeper, gastrackingKeeper gastracker.Keeper) *ProxyFeeGrantKeeper {
+func NewProxyFeeGrantKeeper(underlyingKeeper ante.FeegrantKeeper, wasmKeeper wasm.Keeper, gastrackingKeeper gastracker.GasTrackingKeeper) *ProxyFeeGrantKeeper {
 	return &ProxyFeeGrantKeeper{
 		wasmKeeper:               wasmKeeper,
 		gastrackingKeeper:        gastrackingKeeper,

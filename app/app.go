@@ -5,6 +5,7 @@ import (
 	wasmdKeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
 	wasmdTypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	cosmwasm "github.com/CosmWasm/wasmvm"
+	proxyFeegrant "github.com/archway-network/archway/x/gastracker/feegrant"
 	"io"
 	"net/http"
 	"os"
@@ -661,7 +662,7 @@ func NewArchwayApp(
 			HandlerOptions: ante.HandlerOptions{
 				AccountKeeper:   app.accountKeeper,
 				BankKeeper:      app.bankKeeper,
-				FeegrantKeeper:  app.FeeGrantKeeper,
+				FeegrantKeeper:  proxyFeegrant.NewProxyFeeGrantKeeper(app.FeeGrantKeeper, app.wasmKeeper, app.gastrackingKeeper),
 				SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
 				SigGasConsumer:  ante.DefaultSigVerificationGasConsumer,
 			},
