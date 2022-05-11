@@ -33,6 +33,7 @@ message TransactionTracking {
   uint64 max_gas_allowed = 1;
   repeated cosmos.base.v1beta1.DecCoin max_contract_rewards = 3;
   repeated ContractGasTracking contract_tracking_infos = 4;
+  bool is_eligible_for_rewards = 5;
 }
 
 // Tracking contract gas usage
@@ -87,3 +88,16 @@ message ContractRewardCalculationEvent {
 
 // Genesis state of the Gastracker module
 message GenesisState {}
+
+// wasm message sent in a tx
+message WasmMsg {
+  string type = 1;
+  bytes data = 2;
+}
+
+// special sudo message to be handled by contract
+message ContractValidFeeGranteeMsg {
+  string grantee = 1;
+  repeated cosmos.base.v1beta1.Coin gas_fee_to_grant = 2;
+  repeated WasmMsg msgs = 3;
+}

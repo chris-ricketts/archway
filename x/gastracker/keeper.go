@@ -22,6 +22,7 @@ type GasTrackingKeeper interface {
 	TrackNewTx(ctx sdk.Context, fee []*sdk.DecCoin, gasLimit uint64) error
 	GetCurrentBlockTracking(ctx sdk.Context) (gstTypes.BlockGasTracking, error)
 	GetCurrentTxTracking(ctx sdk.Context) (gstTypes.TransactionTracking, error)
+	MarkCurrentTxNonEligibleForReward(ctx sdk.Context) error
 	TrackNewBlock(ctx sdk.Context) error
 
 	GetContractMetadata(ctx sdk.Context, address sdk.AccAddress) (gstTypes.ContractInstanceMetadata, error)
@@ -475,12 +476,42 @@ func (k *Keeper) GetCurrentBlockTracking(ctx sdk.Context) (gstTypes.BlockGasTrac
 	return currentBlockTracking, err
 }
 
+func (k Keeper) MarkCurrentTxNonEligibleForReward(ctx sdk.Context) error {
+	gstKvStore := ctx.KVStore(k.key)
+
+	bz := gstKvStore.Get([]byte(gstTypes.CurrentBlockTrackingKey))
+	if bz == nil {
+		return gstTypes.ErrBlockTrackingDataNotFound
+	}
+	var currentBlockGasTracking gstTypes.BlockGasTracking
+	err := k.appCodec.Unmarshal(bz, &currentBlockGasTracking)
+	if err != nil {
+		return err
+	}
+
+	txsLen := len(currentBlockGasTracking.TxTrackingInfos)
+	if txsLen == 0 {
+		return gstTypes.ErrTxTrackingDataNotFound
+	}
+
+	currentTxTracking := currentBlockGasTracking.TxTrackingInfos[txsLen-1]
+	currentTxTracking.IsEligibleForRewards = false
+
+	bz, err = k.appCodec.Marshal(&currentBlockGasTracking)
+	if err != nil {
+		return err
+	}
+	gstKvStore.Set([]byte(gstTypes.CurrentBlockTrackingKey), bz)
+	return nil
+}
+
 func (k *Keeper) TrackNewTx(ctx sdk.Context, fee []*sdk.DecCoin, gasLimit uint64) error {
 	gstKvStore := ctx.KVStore(k.key)
 
 	var currentTxGasTracking gstTypes.TransactionTracking
 	currentTxGasTracking.MaxContractRewards = fee
 	currentTxGasTracking.MaxGasAllowed = gasLimit
+	currentTxGasTracking.IsEligibleForRewards = true
 	bz, err := k.appCodec.Marshal(&currentTxGasTracking)
 	if err != nil {
 		return err

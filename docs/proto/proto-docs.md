@@ -10,10 +10,12 @@
     - [ContractInstanceMetadata](#archway.gastracker.v1.ContractInstanceMetadata)
     - [ContractInstanceSystemMetadata](#archway.gastracker.v1.ContractInstanceSystemMetadata)
     - [ContractRewardCalculationEvent](#archway.gastracker.v1.ContractRewardCalculationEvent)
+    - [ContractValidFeeGranteeMsg](#archway.gastracker.v1.ContractValidFeeGranteeMsg)
     - [GenesisState](#archway.gastracker.v1.GenesisState)
     - [LeftOverRewardEntry](#archway.gastracker.v1.LeftOverRewardEntry)
     - [RewardDistributionEvent](#archway.gastracker.v1.RewardDistributionEvent)
     - [TransactionTracking](#archway.gastracker.v1.TransactionTracking)
+    - [WasmMsg](#archway.gastracker.v1.WasmMsg)
   
     - [ContractOperation](#archway.gastracker.v1.ContractOperation)
   
@@ -128,6 +130,23 @@ Event emitted when contract reward is calculated
 
 
 
+<a name="archway.gastracker.v1.ContractValidFeeGranteeMsg"></a>
+
+### ContractValidFeeGranteeMsg
+special sudo message to be handled by contract
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `grantee` | [string](#string) |  |  |
+| `gas_fee_to_grant` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) | repeated |  |
+| `msgs` | [WasmMsg](#archway.gastracker.v1.WasmMsg) | repeated |  |
+
+
+
+
+
+
 <a name="archway.gastracker.v1.GenesisState"></a>
 
 ### GenesisState
@@ -181,6 +200,23 @@ Tracking contract gas usage and total gas consumption per transaction
 | `max_gas_allowed` | [uint64](#uint64) |  |  |
 | `max_contract_rewards` | [cosmos.base.v1beta1.DecCoin](#cosmos.base.v1beta1.DecCoin) | repeated |  |
 | `contract_tracking_infos` | [ContractGasTracking](#archway.gastracker.v1.ContractGasTracking) | repeated |  |
+| `is_eligible_for_rewards` | [bool](#bool) |  |  |
+
+
+
+
+
+
+<a name="archway.gastracker.v1.WasmMsg"></a>
+
+### WasmMsg
+wasm message sent in a tx
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `type` | [string](#string) |  |  |
+| `data` | [bytes](#bytes) |  |  |
 
 
 
