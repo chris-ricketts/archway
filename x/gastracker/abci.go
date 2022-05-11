@@ -225,6 +225,10 @@ func getContractRewards(context sdk.Context, blockGasTracking gstTypes.BlockGasT
 	totalGasRewardsPerBlock := make(sdk.DecCoins, 0)
 	totalInflationRewardsPerBlock := make(sdk.DecCoins, 0)
 	for _, txTrackingInfo := range blockGasTracking.TxTrackingInfos {
+		if !txTrackingInfo.IsEligibleForRewards {
+			continue
+		}
+
 		// We generate empty coins based on the fees coins.
 		totalGasRewardsInTx := make(sdk.DecCoins, 0)
 		totalInflationRewardsInTx := make(sdk.DecCoins, 0)
