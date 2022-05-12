@@ -8,14 +8,27 @@ import (
 	"github.com/archway-network/archway/x/gastracker/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
-	"github.com/cosmos/cosmos-sdk/x/auth/keeper"
 )
+
+type GasTrackingKeeperFeeGrantView interface {
+	MarkCurrentTxNonEligibleForReward(ctx sdk.Context) error
+	GetContractSystemMetadata(ctx sdk.Context, address sdk.AccAddress) (types.ContractInstanceSystemMetadata, error)
+	SetContractSystemMetadata(ctx sdk.Context, address sdk.AccAddress, metadata types.ContractInstanceSystemMetadata) error
+}
+
+type WasmKeeperFeeGrantView interface {
+	Sudo(ctx sdk.Context, contractAddress sdk.AccAddress, msg []byte) ([]byte, error)
+}
+
+type AccountKeeperFeeGrantView interface {
+	GetModuleAddress(moduleName string) sdk.AccAddress
+}
 
 type ProxyFeeGrantKeeper struct {
 	underlyingFeeGrantKeeper ante.FeegrantKeeper
-	wasmKeeper               wasm.Keeper
-	gastrackingKeeper        gastracker.GasTrackingKeeper
-	accountKeeper            keeper.AccountKeeper
+	wasmKeeper               WasmKeeperFeeGrantView
+	gastrackingKeeper        GasTrackingKeeperFeeGrantView
+	accountKeeper            AccountKeeperFeeGrantView
 }
 
 func (p *ProxyFeeGrantKeeper) extractContractAddressAndMsg(msg sdk.Msg) (sdk.AccAddress, types.WasmMsg, error) {
@@ -59,6 +72,9 @@ func (p *ProxyFeeGrantKeeper) getContractAddressAndMsgs(msgs []sdk.Msg) (sdk.Acc
 			}
 		}
 		wasmMsgs[i] = &wasmMsg
+	}
+	if len(wasmMsgs) == 0 {
+		return nil, nil, fmt.Errorf("FATAL INTERNAL: no message passed")
 	}
 	return txContractAddress, wasmMsgs, nil
 }
@@ -118,7 +134,7 @@ func (p *ProxyFeeGrantKeeper) UseGrantedFees(ctx sdk.Context, granter, grantee s
 	}
 
 	sudoMsg := types.ContractValidFeeGranteeMsg{
-		Grantee:       contractAddress.String(),
+		Grantee:       grantee.String(),
 		GasFeeToGrant: protoFees,
 		Msgs:          wasmMsgs,
 	}
@@ -136,10 +152,11 @@ func (p *ProxyFeeGrantKeeper) UseGrantedFees(ctx sdk.Context, granter, grantee s
 	return p.gastrackingKeeper.MarkCurrentTxNonEligibleForReward(ctx)
 }
 
-func NewProxyFeeGrantKeeper(underlyingKeeper ante.FeegrantKeeper, wasmKeeper wasm.Keeper, gastrackingKeeper gastracker.GasTrackingKeeper) *ProxyFeeGrantKeeper {
+func NewProxyFeeGrantKeeper(underlyingKeeper ante.FeegrantKeeper, wasmKeeper WasmKeeperFeeGrantView, gastrackingKeeper GasTrackingKeeperFeeGrantView, accountKeeper AccountKeeperFeeGrantView) *ProxyFeeGrantKeeper {
 	return &ProxyFeeGrantKeeper{
 		wasmKeeper:               wasmKeeper,
 		gastrackingKeeper:        gastrackingKeeper,
 		underlyingFeeGrantKeeper: underlyingKeeper,
+		accountKeeper:            accountKeeper,
 	}
 }
