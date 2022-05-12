@@ -323,6 +323,20 @@ func TestProxyFeeGrant(t *testing.T) {
 
 	accountKeeper.ResetLogs()
 
+	// Test 6: Invalid Msgs (empty or nil) are passed
+	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, accountKeeper.Address, granteeAddress, normalFee, nil)
+	require.EqualError(t, err, "FATAL INTERNAL: no message passed", "There should be an error regarding no message")
+	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
+	require.Equal(t, gastracker.InflationRewardAccumulator, accountKeeper.ModuleCallAddressLogs[0], "the module name should be of the accumulator")
+
+	require.Equal(t, 0, len(underlyingFeeGrantKeeper.UseGrantedFeeCallLog), "there should be zero call to underlying fee grant keeper")
+	require.Equal(t, 0, len(gasTrackerKeeper.GetContractMetadataCallLogs), "there should be zero call to get contract metadata")
+	require.Equal(t, 0, len(gasTrackerKeeper.SetContractMetadataCallLogs), "there should be zero call to set contract metadata")
+	require.Equal(t, 0, len(wasmKeeper.SudoCallLogs), "there should be zero sudo call to contract")
+	require.Equal(t, 0, len(gasTrackerKeeper.TxNonElibigleCallLogs), "there should be zero call to set tx non eligibility")
+
+	accountKeeper.ResetLogs()
+
 	//Test 5: high fee
 	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, accountKeeper.Address, granteeAddress, highFee, validMsgs)
 	require.EqualError(t, err, "contract's reward is insufficient to cover for the fee", "There should be an error regarding high fee")
