@@ -18,6 +18,7 @@
     - [WasmMsg](#archway.gastracker.v1.WasmMsg)
   
     - [ContractOperation](#archway.gastracker.v1.ContractOperation)
+    - [WasmMsgType](#archway.gastracker.v1.WasmMsgType)
   
 - [archway/gastracker/v1/query.proto](#archway/gastracker/v1/query.proto)
     - [QueryBlockGasTrackingRequest](#archway.gastracker.v1.QueryBlockGasTrackingRequest)
@@ -215,7 +216,7 @@ wasm message sent in a tx
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `type` | [string](#string) |  |  |
+| `type` | [WasmMsgType](#archway.gastracker.v1.WasmMsgType) |  |  |
 | `data` | [bytes](#bytes) |  |  |
 
 
@@ -240,6 +241,19 @@ Denotes which operation consumed this gas
 | CONTRACT_OPERATION_IBC | 5 | IBC operation |
 | CONTRACT_OPERATION_SUDO | 6 | Sudo operation |
 | CONTRACT_OPERATION_REPLY | 7 | Reply operation |
+
+
+
+<a name="archway.gastracker.v1.WasmMsgType"></a>
+
+### WasmMsgType
+Wasm message type
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| WASM_MSG_TYPE_UNSPECIFIED | 0 | Unknown wasm message. It is not used. |
+| WASM_MSG_TYPE_EXECUTE | 1 | Execute wasm message |
+| WASM_MSG_TYPE_MIGRATE | 2 | Migrate wasm message |
 
 
  <!-- end enums -->

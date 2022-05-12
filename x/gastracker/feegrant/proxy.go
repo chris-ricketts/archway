@@ -26,7 +26,7 @@ func (p *ProxyFeeGrantKeeper) extractContractAddressAndMsg(msg sdk.Msg) (sdk.Acc
 			return nil, types.WasmMsg{}, err
 		}
 		return addr, types.WasmMsg{
-			Type: "Execute",
+			Type: types.WasmMsgType_WASM_MSG_TYPE_EXECUTE,
 			Data: msg.Msg,
 		}, nil
 	case *wasm.MsgMigrateContract:
@@ -35,7 +35,7 @@ func (p *ProxyFeeGrantKeeper) extractContractAddressAndMsg(msg sdk.Msg) (sdk.Acc
 			return nil, types.WasmMsg{}, err
 		}
 		return addr, types.WasmMsg{
-			Type: "Execute",
+			Type: types.WasmMsgType_WASM_MSG_TYPE_MIGRATE,
 			Data: msg.Msg,
 		}, nil
 	default:

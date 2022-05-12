@@ -89,9 +89,19 @@ message ContractRewardCalculationEvent {
 // Genesis state of the Gastracker module
 message GenesisState {}
 
+// Wasm message type
+enum WasmMsgType {
+  // Unknown wasm message. It is not used.
+  WASM_MSG_TYPE_UNSPECIFIED = 0;
+  // Execute wasm message
+  WASM_MSG_TYPE_EXECUTE = 1;
+  // Migrate wasm message
+  WASM_MSG_TYPE_MIGRATE = 2;
+}
+
 // wasm message sent in a tx
 message WasmMsg {
-  string type = 1;
+  WasmMsgType type = 1;
   bytes data = 2;
 }
 
