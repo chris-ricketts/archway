@@ -260,10 +260,10 @@ func TestABCIContractMetadataCommit(t *testing.T) {
 //   Gas Used = 2
 //   "2" Contract's reward is: 2 * (2 / 2) = 2test and 0.5 * (2 / 2) = 0.5test1
 // Total rewards:
-// For Contract "1": 0.20153test (0.00153 + 0.2) and 0.0666666test1
-// For Contract "2": 2.40459test (0.00306 + 0.00153 + 0.4 + 2) and 0.6333333test1 (0.1333333 + 0.5)
-// For Contract "3": 0.150765test (0.000765 + 0.15) and 0.04999995test1
-// For Contract "4": 0.000765test (0.000706)
+// For Contract "1": 0.20153test (0.00153(I) + 0.2) and 0.0666666test1
+// For Contract "2": 2.40459test (0.00306(I) + 0.00153(I) + 0.4 + 2) and 0.6333333test1 (0.1333333 + 0.5)
+// For Contract "3": 0.150765test (0.000765(I) + 0.15) and 0.04999995test1
+// For Contract "4": 0.000765test (0.000706(I))
 // Reward distribution per address:
 // (for contract "1" and "4") "archway16w95tw2ueqdy0nvknkjv07zc287earxhwlykpt": 0.20153test + 0.000765test (0.202295test) and 0.0666666test1
 // (for contract "2" and "3") "archway1j08452mqwadp8xu25kn9rleyl2gufgfjls8ekk": 2.555355test  and 0.6666666test1
@@ -289,17 +289,18 @@ func TestRewardCalculation(t *testing.T) {
 	params := gstTypes.DefaultParams()
 	expected := expect{
 		rewardsA: []sdk.DecCoin{
-			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.202295")),
+			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.2")),
 			sdk.NewDecCoinFromDec("test1", sdk.MustNewDecFromStr("0.066666666666666667")),
 		},
 		rewardsB: []sdk.DecCoin{
-			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.555355")),
+			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.55")),
 			sdk.NewDecCoinFromDec("test1", sdk.MustNewDecFromStr("0.683333333333333333")),
 		},
 		logs: []*RewardTransferKeeperCallLogs{
 			createLogModule(authTypes.FeeCollectorName, gstTypes.GasRewardCollector, sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(3)), sdk.NewCoin("test1", sdk.NewInt(1)))),
 			createLogAddr(gstTypes.GasRewardCollector, spareAddress[5].String(), sdk.NewCoins()),
 			createLogAddr(gstTypes.GasRewardCollector, spareAddress[6].String(), sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(2)))),
+			createLogModule(authTypes.FeeCollectorName, gstTypes.InflationRewardAccumulator, sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(1)))),
 		},
 	}
 
@@ -360,8 +361,9 @@ func TestRewardCalculation(t *testing.T) {
 
 	CreateTestBlockEntry(ctx, keeper.key, keeper.appCodec, gstTypes.BlockGasTracking{TxTrackingInfos: []*gstTypes.TransactionTracking{
 		{
-			MaxGasAllowed:      10,
-			MaxContractRewards: []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        10,
+			MaxContractRewards:   []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[1].String(),
@@ -390,8 +392,9 @@ func TestRewardCalculation(t *testing.T) {
 			},
 		},
 		{
-			MaxGasAllowed:      2,
-			MaxContractRewards: []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        2,
+			MaxContractRewards:   []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[2].String(),
@@ -426,9 +429,6 @@ func TestRewardCalculation(t *testing.T) {
 	}
 }
 
-//func TestRewardCalculation(t *testing.T) {
-//}
-
 func TestContractRewardsWithoutContractPremium(t *testing.T) {
 	config := sdk.GetConfig()
 	config.SetBech32PrefixForAccount("archway", "archway")
@@ -446,17 +446,18 @@ func TestContractRewardsWithoutContractPremium(t *testing.T) {
 	params := disableContractPremium(gstTypes.DefaultParams())
 	expected := expect{
 		rewardsA: []sdk.DecCoin{
-			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.202295")),
+			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.2")),
 			sdk.NewDecCoinFromDec("test1", sdk.MustNewDecFromStr("0.066666666666666667")),
 		},
 		rewardsB: []sdk.DecCoin{
-			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.505355")),
+			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.5")),
 			sdk.NewDecCoinFromDec("test1", sdk.MustNewDecFromStr("0.666666666666666666")),
 		},
 		logs: []*RewardTransferKeeperCallLogs{
 			createLogModule(authTypes.FeeCollectorName, gstTypes.GasRewardCollector, sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(3)), sdk.NewCoin("test1", sdk.NewInt(1)))),
 			createLogAddr(gstTypes.GasRewardCollector, spareAddress[5].String(), sdk.NewCoins()),
 			createLogAddr(gstTypes.GasRewardCollector, spareAddress[6].String(), sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(2)))),
+			createLogModule(authTypes.FeeCollectorName, gstTypes.InflationRewardAccumulator, sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(1)))),
 		},
 	}
 
@@ -516,8 +517,9 @@ func TestContractRewardsWithoutContractPremium(t *testing.T) {
 
 	CreateTestBlockEntry(ctx, keeper.key, keeper.appCodec, gstTypes.BlockGasTracking{TxTrackingInfos: []*gstTypes.TransactionTracking{
 		{
-			MaxGasAllowed:      10,
-			MaxContractRewards: []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        10,
+			MaxContractRewards:   []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[1].String(),
@@ -546,8 +548,9 @@ func TestContractRewardsWithoutContractPremium(t *testing.T) {
 			},
 		},
 		{
-			MaxGasAllowed:      2,
-			MaxContractRewards: []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        2,
+			MaxContractRewards:   []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[2].String(),
@@ -669,8 +672,9 @@ func TestContractRewardsWithoutDappInflation(t *testing.T) {
 
 	CreateTestBlockEntry(ctx, keeper.key, keeper.appCodec, gstTypes.BlockGasTracking{TxTrackingInfos: []*gstTypes.TransactionTracking{
 		{
-			MaxGasAllowed:      10,
-			MaxContractRewards: []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        10,
+			MaxContractRewards:   []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[1].String(),
@@ -699,8 +703,9 @@ func TestContractRewardsWithoutDappInflation(t *testing.T) {
 			},
 		},
 		{
-			MaxGasAllowed:      2,
-			MaxContractRewards: []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        2,
+			MaxContractRewards:   []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[2].String(),
@@ -750,16 +755,8 @@ func TestContractRewardsWithoutGasRebate(t *testing.T) {
 	}
 	params := disableGasRebate(gstTypes.DefaultParams())
 	expected := expect{
-		rewardsA: []sdk.DecCoin{
-			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.002295")),
-		},
-		rewardsB: []sdk.DecCoin{
-			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.005355")),
-		},
 		logs: []*RewardTransferKeeperCallLogs{
-			createLogModule(authTypes.FeeCollectorName, gstTypes.GasRewardCollector, sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(1)))),
-			createLogAddr(gstTypes.GasRewardCollector, spareAddress[5].String(), sdk.NewCoins()),
-			createLogAddr(gstTypes.GasRewardCollector, spareAddress[6].String(), sdk.NewCoins()),
+			createLogModule(authTypes.FeeCollectorName, gstTypes.InflationRewardAccumulator, sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(1)))),
 		},
 	}
 
@@ -820,8 +817,9 @@ func TestContractRewardsWithoutGasRebate(t *testing.T) {
 
 	CreateTestBlockEntry(ctx, keeper.key, keeper.appCodec, gstTypes.BlockGasTracking{TxTrackingInfos: []*gstTypes.TransactionTracking{
 		{
-			MaxGasAllowed:      10,
-			MaxContractRewards: []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        10,
+			MaxContractRewards:   []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[1].String(),
@@ -850,8 +848,9 @@ func TestContractRewardsWithoutGasRebate(t *testing.T) {
 			},
 		},
 		{
-			MaxGasAllowed:      2,
-			MaxContractRewards: []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        2,
+			MaxContractRewards:   []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[2].String(),
@@ -871,19 +870,11 @@ func TestContractRewardsWithoutGasRebate(t *testing.T) {
 	}
 
 	// Let's check left-over balances
-	leftOverEntry, err := keeper.GetLeftOverRewardEntry(ctx, spareAddress[5])
-	require.NoError(t, err, "We should be able to get left over entry")
-	require.Equal(t, len(expected.rewardsA), len(leftOverEntry.ContractRewards))
-	for i := 0; i < len(expected.rewardsA); i++ {
-		require.Equal(t, expected.rewardsA[i], *leftOverEntry.ContractRewards[i])
-	}
+	_, err = keeper.GetLeftOverRewardEntry(ctx, spareAddress[5])
+	require.EqualError(t, err, gstTypes.ErrRewardEntryNotFound.Error(), "We should get left over entry not found")
 
-	leftOverEntry, err = keeper.GetLeftOverRewardEntry(ctx, spareAddress[6])
-	require.NoError(t, err, "We should be able to get left over entry")
-	require.Equal(t, len(expected.rewardsB), len(leftOverEntry.ContractRewards))
-	for i := 0; i < len(expected.rewardsB); i++ {
-		require.Equal(t, expected.rewardsB[i], *leftOverEntry.ContractRewards[i])
-	}
+	_, err = keeper.GetLeftOverRewardEntry(ctx, spareAddress[6])
+	require.EqualError(t, err, gstTypes.ErrRewardEntryNotFound.Error(), "We should get left over entry not found")
 }
 
 func TestContractRewardWithoutGasRebateAndDappInflation(t *testing.T) {
@@ -964,8 +955,9 @@ func TestContractRewardWithoutGasRebateAndDappInflation(t *testing.T) {
 
 	CreateTestBlockEntry(ctx, keeper.key, keeper.appCodec, gstTypes.BlockGasTracking{TxTrackingInfos: []*gstTypes.TransactionTracking{
 		{
-			MaxGasAllowed:      10,
-			MaxContractRewards: []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        10,
+			MaxContractRewards:   []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[1].String(),
@@ -994,8 +986,9 @@ func TestContractRewardWithoutGasRebateAndDappInflation(t *testing.T) {
 			},
 		},
 		{
-			MaxGasAllowed:      2,
-			MaxContractRewards: []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        2,
+			MaxContractRewards:   []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[2].String(),
@@ -1100,8 +1093,9 @@ func TestContractRewardsWithoutGasTracking(t *testing.T) {
 
 	CreateTestBlockEntry(ctx, keeper.key, keeper.appCodec, gstTypes.BlockGasTracking{TxTrackingInfos: []*gstTypes.TransactionTracking{
 		{
-			MaxGasAllowed:      10,
-			MaxContractRewards: []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        10,
+			MaxContractRewards:   []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[1].String(),
@@ -1130,8 +1124,9 @@ func TestContractRewardsWithoutGasTracking(t *testing.T) {
 			},
 		},
 		{
-			MaxGasAllowed:      2,
-			MaxContractRewards: []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        2,
+			MaxContractRewards:   []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[2].String(),
@@ -1176,17 +1171,18 @@ func TestContractRewardsWithoutGasRebateToUser(t *testing.T) {
 	params := disableGasRebateToUser(gstTypes.DefaultParams())
 	expected := expect{
 		rewardsA: []sdk.DecCoin{
-			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.302295")),
+			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.3")),
 			sdk.NewDecCoinFromDec("test1", sdk.MustNewDecFromStr("0.100000000000000000")),
 		},
 		rewardsB: []sdk.DecCoin{
-			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.555355")),
+			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.55")),
 			sdk.NewDecCoinFromDec("test1", sdk.MustNewDecFromStr("0.683333333333333333")),
 		},
 		logs: []*RewardTransferKeeperCallLogs{
 			createLogModule(authTypes.FeeCollectorName, gstTypes.GasRewardCollector, sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(3)), sdk.NewCoin("test1", sdk.NewInt(1)))),
 			createLogAddr(gstTypes.GasRewardCollector, spareAddress[5].String(), sdk.NewCoins()),
 			createLogAddr(gstTypes.GasRewardCollector, spareAddress[6].String(), sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(2)))),
+			createLogModule(authTypes.FeeCollectorName, gstTypes.InflationRewardAccumulator, sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(1)))),
 		},
 	}
 
@@ -1247,8 +1243,9 @@ func TestContractRewardsWithoutGasRebateToUser(t *testing.T) {
 
 	CreateTestBlockEntry(ctx, keeper.key, keeper.appCodec, gstTypes.BlockGasTracking{TxTrackingInfos: []*gstTypes.TransactionTracking{
 		{
-			MaxGasAllowed:      10,
-			MaxContractRewards: []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        10,
+			MaxContractRewards:   []*sdk.DecCoin{&firstTxMaxContractReward[0], &firstTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[1].String(),
@@ -1277,8 +1274,9 @@ func TestContractRewardsWithoutGasRebateToUser(t *testing.T) {
 			},
 		},
 		{
-			MaxGasAllowed:      2,
-			MaxContractRewards: []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
+			IsEligibleForRewards: true,
+			MaxGasAllowed:        2,
+			MaxContractRewards:   []*sdk.DecCoin{&secondTxMaxContractReward[0], &secondTxMaxContractReward[1]},
 			ContractTrackingInfos: []*gstTypes.ContractGasTracking{
 				{
 					Address:        spareAddress[2].String(),
