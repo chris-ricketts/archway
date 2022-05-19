@@ -63,6 +63,7 @@ message ContractInstanceMetadata {
 message ContractInstanceSystemMetadata {
   // Inflation reward balance of this contract instance.
   repeated cosmos.base.v1beta1.DecCoin inflation_balance = 1;
+  bytes block_tx_counter = 2;
 }
 
 // Reward entry per beneficiary address

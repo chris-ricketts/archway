@@ -1,6 +1,7 @@
 package feegrant
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/CosmWasm/wasmd/x/wasm"
@@ -9,6 +10,16 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 )
+
+func encodeHeightCounter(height int64, counter uint32) []byte {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, counter)
+	return append(sdk.Uint64ToBigEndian(uint64(height)), b...)
+}
+
+func decodeHeightCounter(bz []byte) (int64, uint32) {
+	return int64(sdk.BigEndianToUint64(bz[0:8])), binary.BigEndian.Uint32(bz[8:])
+}
 
 type GasTrackingKeeperFeeGrantView interface {
 	MarkCurrentTxNonEligibleForReward(ctx sdk.Context) error
@@ -79,12 +90,7 @@ func (p *ProxyFeeGrantKeeper) getContractAddressAndMsgs(msgs []sdk.Msg) (sdk.Acc
 	return txContractAddress, wasmMsgs, nil
 }
 
-func (p *ProxyFeeGrantKeeper) checkAndDeductContractBalance(ctx sdk.Context, contractAddress sdk.AccAddress, fee sdk.Coins) error {
-	metadata, err := p.gastrackingKeeper.GetContractSystemMetadata(ctx, contractAddress)
-	if err != nil {
-		return err
-	}
-
+func (p *ProxyFeeGrantKeeper) checkAndDeductContractBalance(ctx sdk.Context, contractAddress sdk.AccAddress, fee sdk.Coins, metadata types.ContractInstanceSystemMetadata) error {
 	convertedFee := make(sdk.DecCoins, len(fee))
 	for i := range fee {
 		convertedFee[i] = sdk.NewDecCoinFromCoin(fee[i])
@@ -109,6 +115,34 @@ func (p *ProxyFeeGrantKeeper) checkAndDeductContractBalance(ctx sdk.Context, con
 	return p.gastrackingKeeper.SetContractSystemMetadata(ctx, contractAddress, metadata)
 }
 
+func (p *ProxyFeeGrantKeeper) isRequestRateLimited(ctx sdk.Context, metadata types.ContractInstanceSystemMetadata) (bool, types.ContractInstanceSystemMetadata) {
+	if ctx.IsCheckTx() || ctx.IsReCheckTx() {
+		return false, metadata
+	}
+
+	if ctx.BlockHeight()%3 != 0 {
+		return true, metadata
+	}
+
+	if metadata.BlockTxCounter == nil {
+		metadata.BlockTxCounter = encodeHeightCounter(ctx.BlockHeight(), 1)
+		return false, metadata
+	}
+
+	height, txCounter := decodeHeightCounter(metadata.BlockTxCounter)
+	if height != ctx.BlockHeight() {
+		metadata.BlockTxCounter = encodeHeightCounter(ctx.BlockHeight(), 1)
+		return false, metadata
+	}
+
+	if txCounter > 2 {
+		return true, metadata
+	}
+
+	metadata.BlockTxCounter = encodeHeightCounter(ctx.BlockHeight(), txCounter+1)
+	return false, metadata
+}
+
 func (p *ProxyFeeGrantKeeper) UseGrantedFees(ctx sdk.Context, granter, grantee sdk.AccAddress, fee sdk.Coins, msgs []sdk.Msg) error {
 	rewardAccumulatorAddress := p.accountKeeper.GetModuleAddress(gastracker.InflationRewardAccumulator)
 	if rewardAccumulatorAddress == nil {
@@ -123,7 +157,17 @@ func (p *ProxyFeeGrantKeeper) UseGrantedFees(ctx sdk.Context, granter, grantee s
 		return err
 	}
 
-	err = p.checkAndDeductContractBalance(ctx, contractAddress, fee)
+	metadata, err := p.gastrackingKeeper.GetContractSystemMetadata(ctx, contractAddress)
+	if err != nil {
+		return err
+	}
+
+	isRateLimited, metadata := p.isRequestRateLimited(ctx, metadata)
+	if isRateLimited {
+		return fmt.Errorf("fee grant is rate limited, please try again")
+	}
+
+	err = p.checkAndDeductContractBalance(ctx, contractAddress, fee, metadata)
 	if err != nil {
 		return err
 	}

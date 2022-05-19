@@ -23,6 +23,7 @@ type setContractMetadataLog struct {
 type testGasTrackingKeeper struct {
 	FailTxNonEligibleCall bool
 	InflationBalance      []*sdk.DecCoin
+	BlockTxCouner         []byte
 
 	TxNonElibigleCallLogs       []string
 	GetContractMetadataCallLogs []sdk.AccAddress
@@ -42,6 +43,7 @@ func (t *testGasTrackingKeeper) GetContractSystemMetadata(ctx sdk.Context, addre
 
 	return gstTypes.ContractInstanceSystemMetadata{
 		InflationBalance: t.InflationBalance,
+		BlockTxCounter:   t.BlockTxCouner,
 	}, nil
 }
 
@@ -337,7 +339,44 @@ func TestProxyFeeGrant(t *testing.T) {
 
 	accountKeeper.ResetLogs()
 
-	//Test 5: high fee
+	// Test 7: Block rate limiting is reached (Block height is not in multiple of 3)
+	ctx := sdk.Context{}.WithBlockHeight(2)
+	err = proxyFeeGrantKeeper.UseGrantedFees(ctx, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
+	require.EqualError(t, err, "fee grant is rate limited, please try again", "There should be an error regarding rate limiting")
+	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
+	require.Equal(t, gastracker.InflationRewardAccumulator, accountKeeper.ModuleCallAddressLogs[0], "the module name should be of the accumulator")
+	require.Equal(t, 1, len(gasTrackerKeeper.GetContractMetadataCallLogs), "there should be one call to get contract metadata")
+	require.Equal(t, contractAddress1, gasTrackerKeeper.GetContractMetadataCallLogs[0], "the contract metadata call should be with correct address")
+
+	require.Equal(t, 0, len(underlyingFeeGrantKeeper.UseGrantedFeeCallLog), "there should be zero call to underlying fee grant keeper")
+	require.Equal(t, 0, len(gasTrackerKeeper.SetContractMetadataCallLogs), "there should be zero call to set contract metadata")
+	require.Equal(t, 0, len(wasmKeeper.SudoCallLogs), "there should be zero sudo call to contract")
+	require.Equal(t, 0, len(gasTrackerKeeper.TxNonElibigleCallLogs), "there should be zero call to set tx non eligibility")
+
+	accountKeeper.ResetLogs()
+	gasTrackerKeeper.ResetLogs()
+
+	// Test 8: Block rate limiting is reached (Tx counter is greater than 2)
+	gasTrackerKeeper.BlockTxCouner = encodeHeightCounter(3, 3)
+	ctx = sdk.Context{}.WithBlockHeight(3)
+	err = proxyFeeGrantKeeper.UseGrantedFees(ctx, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
+	require.EqualError(t, err, "fee grant is rate limited, please try again", "There should be an error regarding rate limiting")
+	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
+	require.Equal(t, gastracker.InflationRewardAccumulator, accountKeeper.ModuleCallAddressLogs[0], "the module name should be of the accumulator")
+	require.Equal(t, 1, len(gasTrackerKeeper.GetContractMetadataCallLogs), "there should be one call to get contract metadata")
+	require.Equal(t, contractAddress1, gasTrackerKeeper.GetContractMetadataCallLogs[0], "the contract metadata call should be with correct address")
+
+	require.Equal(t, 0, len(underlyingFeeGrantKeeper.UseGrantedFeeCallLog), "there should be zero call to underlying fee grant keeper")
+	require.Equal(t, 0, len(gasTrackerKeeper.SetContractMetadataCallLogs), "there should be zero call to set contract metadata")
+	require.Equal(t, 0, len(wasmKeeper.SudoCallLogs), "there should be zero sudo call to contract")
+	require.Equal(t, 0, len(gasTrackerKeeper.TxNonElibigleCallLogs), "there should be zero call to set tx non eligibility")
+
+	accountKeeper.ResetLogs()
+	gasTrackerKeeper.ResetLogs()
+
+	gasTrackerKeeper.BlockTxCouner = nil
+
+	//Test 9: high fee
 	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, accountKeeper.Address, granteeAddress, highFee, validMsgs)
 	require.EqualError(t, err, "contract's reward is insufficient to cover for the fee", "There should be an error regarding high fee")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
@@ -353,7 +392,7 @@ func TestProxyFeeGrant(t *testing.T) {
 	accountKeeper.ResetLogs()
 	gasTrackerKeeper.ResetLogs()
 
-	// Test 6: Normal Fee, but the contract denies access to funds
+	// Test 10: Normal Fee, but the contract denies access to funds
 	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
 	require.EqualError(t, err, "fail sudo call", "contract should be denying access to the funds")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
@@ -365,6 +404,7 @@ func TestProxyFeeGrant(t *testing.T) {
 		Address: contractAddress1,
 		Metadata: gstTypes.ContractInstanceSystemMetadata{
 			InflationBalance: normalFeeBalance,
+			BlockTxCounter:   encodeHeightCounter(0, 1),
 		},
 	}, gasTrackerKeeper.SetContractMetadataCallLogs[0], "set contract metadata call should be with correct address and balance")
 	require.Equal(t, 1, len(wasmKeeper.SudoCallLogs), "there should be one sudo call to contract")
@@ -380,7 +420,7 @@ func TestProxyFeeGrant(t *testing.T) {
 	gasTrackerKeeper.ResetLogs()
 	wasmKeeper.ResetLogs()
 
-	// Test 7: Everything is alright
+	// Test 11: Everything is alright
 	wasmKeeper.FailSudoCall = false
 	gasTrackerKeeper.FailTxNonEligibleCall = false
 	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
@@ -394,6 +434,7 @@ func TestProxyFeeGrant(t *testing.T) {
 		Address: contractAddress1,
 		Metadata: gstTypes.ContractInstanceSystemMetadata{
 			InflationBalance: normalFeeBalance,
+			BlockTxCounter:   encodeHeightCounter(0, 1),
 		},
 	}, gasTrackerKeeper.SetContractMetadataCallLogs[0], "set contract metadata call should be with correct address and balance")
 	require.Equal(t, 1, len(wasmKeeper.SudoCallLogs), "there should be one sudo call to contract")
@@ -405,4 +446,8 @@ func TestProxyFeeGrant(t *testing.T) {
 	require.Equal(t, "", gasTrackerKeeper.TxNonElibigleCallLogs[0], "there should be log in place")
 
 	require.Equal(t, 0, len(underlyingFeeGrantKeeper.UseGrantedFeeCallLog), "there should be zero call to underlying fee grant keeper")
+}
+
+func TestRateLimitingFunc(t *testing.T) {
+
 }
