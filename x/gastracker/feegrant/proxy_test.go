@@ -449,5 +449,47 @@ func TestProxyFeeGrant(t *testing.T) {
 }
 
 func TestRateLimitingFunc(t *testing.T) {
+	proxyFeeGrantkeeper := ProxyFeeGrantKeeper{}
 
+	// Test 1: No rate limiting on check tx
+	isRateLimited, updatedMetadata := proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(2).WithIsCheckTx(true), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(0, 0),
+	})
+	require.Equal(t, false, isRateLimited, "There should not be rate limiting")
+	require.Equal(t, encodeHeightCounter(0, 0), updatedMetadata.BlockTxCounter)
+
+	// Test 2: No rate limiting on recheck tx
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(2).WithIsReCheckTx(true), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(0, 0),
+	})
+	require.Equal(t, false, isRateLimited, "There should not be rate limiting")
+	require.Equal(t, encodeHeightCounter(0, 0), updatedMetadata.BlockTxCounter)
+
+	// Test 3: Rate limiting when block height is not multiple of 3
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(2), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(0, 0),
+	})
+	require.Equal(t, true, isRateLimited, "There should be rate limiting")
+	require.Equal(t, encodeHeightCounter(0, 0), updatedMetadata.BlockTxCounter)
+
+	// Test 4: No rate limiting when block height is multiple of 3 and tx counter is outdated
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(3), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(0, 3),
+	})
+	require.Equal(t, false, isRateLimited, "There should not be any rate limiting")
+	require.Equal(t, encodeHeightCounter(3, 1), updatedMetadata.BlockTxCounter)
+
+	// Test 5: No rate limiting when block height is multiple of 3 and tx counter is less than 3
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(3), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(3, 1),
+	})
+	require.Equal(t, false, isRateLimited, "There should not be any rate limiting")
+	require.Equal(t, encodeHeightCounter(3, 2), updatedMetadata.BlockTxCounter)
+
+	// Test 6: Rate limiting when block height is multiple of 3 and tx counter is greater than or equal to 3
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(3), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(3, 3),
+	})
+	require.Equal(t, true, isRateLimited, "There should be rate limiting")
+	require.Equal(t, encodeHeightCounter(3, 3), updatedMetadata.BlockTxCounter)
 }
