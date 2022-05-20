@@ -663,7 +663,7 @@ func NewArchwayApp(
 			HandlerOptions: ante.HandlerOptions{
 				AccountKeeper:   app.accountKeeper,
 				BankKeeper:      app.bankKeeper,
-				FeegrantKeeper:  proxyFeegrant.NewProxyFeeGrantKeeper(app.FeeGrantKeeper, app.wasmKeeper, app.gastrackingKeeper, app.accountKeeper),
+				FeegrantKeeper:  proxyFeegrant.NewProxyFeeGrantKeeper(app.FeeGrantKeeper, app.wasmKeeper, app.gastrackingKeeper, app.accountKeeper, keys[gastracker.StoreKey]),
 				SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
 				SigGasConsumer:  ante.DefaultSigVerificationGasConsumer,
 			},

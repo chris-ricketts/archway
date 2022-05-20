@@ -11,14 +11,14 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 )
 
-func encodeHeightCounter(height int64, counter uint32) []byte {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, counter)
+func encodeHeightCounter(height int64, gasLimit uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, gasLimit)
 	return append(sdk.Uint64ToBigEndian(uint64(height)), b...)
 }
 
-func decodeHeightCounter(bz []byte) (int64, uint32) {
-	return int64(sdk.BigEndianToUint64(bz[0:8])), binary.BigEndian.Uint32(bz[8:])
+func decodeHeightCounter(bz []byte) (int64, uint64) {
+	return int64(sdk.BigEndianToUint64(bz[0:8])), binary.BigEndian.Uint64(bz[8:])
 }
 
 type GasTrackingKeeperFeeGrantView interface {
@@ -40,6 +40,7 @@ type ProxyFeeGrantKeeper struct {
 	wasmKeeper               WasmKeeperFeeGrantView
 	gastrackingKeeper        GasTrackingKeeperFeeGrantView
 	accountKeeper            AccountKeeperFeeGrantView
+	storeKey                 sdk.StoreKey
 }
 
 func (p *ProxyFeeGrantKeeper) extractContractAddressAndMsg(msg sdk.Msg) (sdk.AccAddress, types.WasmMsg, error) {
@@ -115,31 +116,47 @@ func (p *ProxyFeeGrantKeeper) checkAndDeductContractBalance(ctx sdk.Context, con
 	return p.gastrackingKeeper.SetContractSystemMetadata(ctx, contractAddress, metadata)
 }
 
+func (p *ProxyFeeGrantKeeper) tryUpdateCounter(currentHeight int64, currentGasLimit uint64, encodedCounter []byte, gasLimit uint64) ([]byte, error) {
+	if currentGasLimit > gasLimit {
+		return nil, fmt.Errorf("current tx's gas limit is higher than rate limit: %d", gasLimit)
+	}
+
+	if encodedCounter == nil {
+		return encodeHeightCounter(currentHeight, currentGasLimit), nil
+	}
+
+	decodedHeight, decodedGasLimit := decodeHeightCounter(encodedCounter)
+	if decodedHeight != currentHeight {
+		return encodeHeightCounter(currentHeight, currentGasLimit), nil
+	}
+
+	if decodedGasLimit > gasLimit || decodedGasLimit+currentGasLimit > gasLimit {
+		return nil, fmt.Errorf("max value of tx counter exceeded. limit: %d", gasLimit)
+	}
+
+	return encodeHeightCounter(currentHeight, decodedGasLimit+currentGasLimit), nil
+}
+
 func (p *ProxyFeeGrantKeeper) isRequestRateLimited(ctx sdk.Context, metadata types.ContractInstanceSystemMetadata) (bool, types.ContractInstanceSystemMetadata) {
+	store := ctx.KVStore(p.storeKey)
+
 	if ctx.IsCheckTx() || ctx.IsReCheckTx() {
 		return false, metadata
 	}
 
-	if ctx.BlockHeight()%3 != 0 {
+	globalTxCounterEncoded := store.Get([]byte(types.GlobalTxCounterKey))
+	updatedGlobalTxCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), globalTxCounterEncoded, 800000)
+	if err != nil {
 		return true, metadata
 	}
+	store.Set([]byte(types.GlobalTxCounterKey), updatedGlobalTxCounter)
 
-	if metadata.BlockTxCounter == nil {
-		metadata.BlockTxCounter = encodeHeightCounter(ctx.BlockHeight(), 1)
-		return false, metadata
-	}
-
-	height, txCounter := decodeHeightCounter(metadata.BlockTxCounter)
-	if height != ctx.BlockHeight() {
-		metadata.BlockTxCounter = encodeHeightCounter(ctx.BlockHeight(), 1)
-		return false, metadata
-	}
-
-	if txCounter > 2 {
+	updatedLocalTxCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), metadata.BlockTxCounter, 400000)
+	if err != nil {
 		return true, metadata
 	}
+	metadata.BlockTxCounter = updatedLocalTxCounter
 
-	metadata.BlockTxCounter = encodeHeightCounter(ctx.BlockHeight(), txCounter+1)
 	return false, metadata
 }
 
@@ -190,17 +207,18 @@ func (p *ProxyFeeGrantKeeper) UseGrantedFees(ctx sdk.Context, granter, grantee s
 
 	_, err = p.wasmKeeper.Sudo(ctx, contractAddress, jsonMsg)
 	if err != nil {
-		return err
+		ctx.Logger().Error("Ignoring error for sudo:", "err", err, "json", string(jsonMsg))
 	}
 
 	return p.gastrackingKeeper.MarkCurrentTxNonEligibleForReward(ctx)
 }
 
-func NewProxyFeeGrantKeeper(underlyingKeeper ante.FeegrantKeeper, wasmKeeper WasmKeeperFeeGrantView, gastrackingKeeper GasTrackingKeeperFeeGrantView, accountKeeper AccountKeeperFeeGrantView) *ProxyFeeGrantKeeper {
+func NewProxyFeeGrantKeeper(underlyingKeeper ante.FeegrantKeeper, wasmKeeper WasmKeeperFeeGrantView, gastrackingKeeper GasTrackingKeeperFeeGrantView, accountKeeper AccountKeeperFeeGrantView, storeKey sdk.StoreKey) *ProxyFeeGrantKeeper {
 	return &ProxyFeeGrantKeeper{
 		wasmKeeper:               wasmKeeper,
 		gastrackingKeeper:        gastrackingKeeper,
 		underlyingFeeGrantKeeper: underlyingKeeper,
 		accountKeeper:            accountKeeper,
+		storeKey:                 storeKey,
 	}
 }

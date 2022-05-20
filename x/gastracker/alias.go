@@ -12,6 +12,8 @@ const (
 	// InflationRewardAccumulator Address: archway1t4pgyqlt00tmwxhrjrfwzq2jz9pesakz9kmdwc
 	InflationRewardAccumulator = types.InflationRewardAccumulator
 
+	GlobalTxCounterKey = types.GlobalTxCounterKey
+
 	GasTrackingQueryRequestMagicString = types.GasTrackingQueryRequestMagicString
 
 	QuerierRoute = types.QuerierRoute

@@ -7,9 +7,11 @@ import (
 	"github.com/CosmWasm/wasmd/x/wasm"
 	"github.com/archway-network/archway/x/gastracker"
 	gstTypes "github.com/archway-network/archway/x/gastracker/types"
+	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
+	db "github.com/tendermint/tm-db"
 	"testing"
 )
 
@@ -256,7 +258,7 @@ func TestProxyFeeGrant(t *testing.T) {
 	require.NoError(t, err, "We should be able to marshal json")
 
 	// Test 1: The reward accumulator module account is not registered
-	proxyFeeGrantKeeper := NewProxyFeeGrantKeeper(&underlyingFeeGrantKeeper, &wasmKeeper, &gasTrackerKeeper, &accountKeeper)
+	proxyFeeGrantKeeper := NewProxyFeeGrantKeeper(&underlyingFeeGrantKeeper, &wasmKeeper, &gasTrackerKeeper, &accountKeeper, sdk.NewKVStoreKey("test"))
 	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, dummyGranter, granteeAddress, normalFee, validMsgs)
 	require.EqualError(t, err, "FATAL INTERNAL: inflation reward accumulator does not exist", "call should error because reward accumulator does not exists")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
@@ -340,7 +342,8 @@ func TestProxyFeeGrant(t *testing.T) {
 	accountKeeper.ResetLogs()
 
 	// Test 7: Block rate limiting is reached (Block height is not in multiple of 3)
-	ctx := sdk.Context{}.WithBlockHeight(2)
+
+	ctx := sdk.Context{}.WithBlockHeight(2).WithGasMeter(sdk.NewGasMeter(10000)).WithMultiStore(store.NewCommitMultiStore(db.NewMemDB()))
 	err = proxyFeeGrantKeeper.UseGrantedFees(ctx, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
 	require.EqualError(t, err, "fee grant is rate limited, please try again", "There should be an error regarding rate limiting")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")

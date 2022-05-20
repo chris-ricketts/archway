@@ -162,6 +162,12 @@ func recordInflationRewards(context sdk.Context, gasTrackingKeeper GasTrackingKe
 		}
 		systemMetadata.InflationBalance = toStoreBalance
 
+		context.Logger().
+			Debug("Added balance for contract in inflation reward pool",
+				"contract", contractAddress,
+				"balanceAdded", inflationRewardByContractAddress[contractAddress],
+				"totalBalance", updatedBalance)
+
 		if err := gasTrackingKeeper.SetContractSystemMetadata(context, contractAddr, systemMetadata); err != nil {
 			panic(err)
 		}

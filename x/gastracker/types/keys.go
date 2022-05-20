@@ -34,6 +34,8 @@ const (
 
 	GasTrackingQueryRequestMagicString = MagicString
 
+	GlobalTxCounterKey = "gtc"
+
 	GasRebateToUserDescriptor = "SmartContractGasRebateToUser"
 
 	PremiumGasDescriptor = "SmartContractPremiumGas"
