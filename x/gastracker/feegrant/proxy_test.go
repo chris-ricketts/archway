@@ -11,8 +11,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
+	tmLog "github.com/tendermint/tendermint/libs/log"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	db "github.com/tendermint/tm-db"
+	"os"
 	"testing"
+	"time"
 )
 
 var _ GasTrackingKeeperFeeGrantView = &testGasTrackingKeeper{}
@@ -157,6 +161,8 @@ func TestProxyFeeGrant(t *testing.T) {
 		FailSudoCall: true,
 	}
 
+	storeKey := sdk.NewKVStoreKey("test")
+
 	inflationBalance := make([]*sdk.DecCoin, 3)
 	testCoinBal := sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("1.2022"))
 	inflationBalance[0] = &testCoinBal
@@ -258,7 +264,7 @@ func TestProxyFeeGrant(t *testing.T) {
 	require.NoError(t, err, "We should be able to marshal json")
 
 	// Test 1: The reward accumulator module account is not registered
-	proxyFeeGrantKeeper := NewProxyFeeGrantKeeper(&underlyingFeeGrantKeeper, &wasmKeeper, &gasTrackerKeeper, &accountKeeper, sdk.NewKVStoreKey("test"))
+	proxyFeeGrantKeeper := NewProxyFeeGrantKeeper(&underlyingFeeGrantKeeper, &wasmKeeper, &gasTrackerKeeper, &accountKeeper, storeKey)
 	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, dummyGranter, granteeAddress, normalFee, validMsgs)
 	require.EqualError(t, err, "FATAL INTERNAL: inflation reward accumulator does not exist", "call should error because reward accumulator does not exists")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
@@ -342,8 +348,15 @@ func TestProxyFeeGrant(t *testing.T) {
 	accountKeeper.ResetLogs()
 
 	// Test 7: Block rate limiting is reached (Block height is not in multiple of 3)
-
-	ctx := sdk.Context{}.WithBlockHeight(2).WithGasMeter(sdk.NewGasMeter(10000)).WithMultiStore(store.NewCommitMultiStore(db.NewMemDB()))
+	memDB := db.NewMemDB()
+	ms := store.NewCommitMultiStore(db.NewMemDB())
+	ms.MountStoreWithDB(storeKey, sdk.StoreTypeIAVL, memDB)
+	err = ms.LoadLatestVersion()
+	require.NoError(t, err, "Loading latest version should not fail")
+	ctx := sdk.NewContext(ms, tmproto.Header{
+		Height: 1234567,
+		Time:   time.Date(2020, time.April, 22, 12, 0, 0, 0, time.UTC),
+	}, false, tmLog.NewTMLogger(os.Stdout)).WithGasMeter(sdk.NewGasMeter(100000)).WithBlockHeight(2)
 	err = proxyFeeGrantKeeper.UseGrantedFees(ctx, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
 	require.EqualError(t, err, "fee grant is rate limited, please try again", "There should be an error regarding rate limiting")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
