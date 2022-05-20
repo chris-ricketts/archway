@@ -9,6 +9,7 @@ const (
 
 	GasRewardCollector = types.GasRewardCollector
 
+	// InflationRewardAccumulator Address: archway1t4pgyqlt00tmwxhrjrfwzq2jz9pesakz9kmdwc
 	InflationRewardAccumulator = types.InflationRewardAccumulator
 
 	GasTrackingQueryRequestMagicString = types.GasTrackingQueryRequestMagicString
