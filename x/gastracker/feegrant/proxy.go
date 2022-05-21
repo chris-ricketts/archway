@@ -149,12 +149,14 @@ func (p *ProxyFeeGrantKeeper) isRequestRateLimited(ctx sdk.Context, metadata typ
 	if err != nil {
 		return true, metadata
 	}
-	store.Set([]byte(types.GlobalTxCounterKey), updatedGlobalTxCounter)
 
 	updatedLocalTxCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), metadata.BlockTxCounter, 400000)
 	if err != nil {
 		return true, metadata
 	}
+
+	// Update counters
+	store.Set([]byte(types.GlobalTxCounterKey), updatedGlobalTxCounter)
 	metadata.BlockTxCounter = updatedLocalTxCounter
 
 	return false, metadata
@@ -207,7 +209,7 @@ func (p *ProxyFeeGrantKeeper) UseGrantedFees(ctx sdk.Context, granter, grantee s
 
 	_, err = p.wasmKeeper.Sudo(ctx, contractAddress, jsonMsg)
 	if err != nil {
-		ctx.Logger().Error("Ignoring error for sudo:", "err", err, "json", string(jsonMsg))
+		return err
 	}
 
 	return p.gastrackingKeeper.MarkCurrentTxNonEligibleForReward(ctx)

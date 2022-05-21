@@ -143,6 +143,18 @@ func (t *testUnderlyingFeeGrantKeeper) UseGrantedFees(ctx sdk.Context, granter, 
 	return nil
 }
 
+func createContext(t *testing.T, storeKey sdk.StoreKey) sdk.Context {
+	memDB := db.NewMemDB()
+	ms := store.NewCommitMultiStore(db.NewMemDB())
+	ms.MountStoreWithDB(storeKey, sdk.StoreTypeIAVL, memDB)
+	err := ms.LoadLatestVersion()
+	require.NoError(t, err, "Loading latest version should not fail")
+	return sdk.NewContext(ms, tmproto.Header{
+		Height: 1234567,
+		Time:   time.Date(2020, time.April, 22, 12, 0, 0, 0, time.UTC),
+	}, false, tmLog.NewTMLogger(os.Stdout))
+}
+
 func GenerateRandomAccAddress() sdk.AccAddress {
 	var address sdk.AccAddress = make([]byte, 20)
 	_, err := rand.Read(address)
@@ -347,16 +359,9 @@ func TestProxyFeeGrant(t *testing.T) {
 
 	accountKeeper.ResetLogs()
 
-	// Test 7: Block rate limiting is reached (Block height is not in multiple of 3)
-	memDB := db.NewMemDB()
-	ms := store.NewCommitMultiStore(db.NewMemDB())
-	ms.MountStoreWithDB(storeKey, sdk.StoreTypeIAVL, memDB)
-	err = ms.LoadLatestVersion()
-	require.NoError(t, err, "Loading latest version should not fail")
-	ctx := sdk.NewContext(ms, tmproto.Header{
-		Height: 1234567,
-		Time:   time.Date(2020, time.April, 22, 12, 0, 0, 0, time.UTC),
-	}, false, tmLog.NewTMLogger(os.Stdout)).WithGasMeter(sdk.NewGasMeter(100000)).WithBlockHeight(2)
+	// Test 7: Block rate limiting is reached (The gas limit is very high)
+	ctx := createContext(t, storeKey)
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(1000000)).WithBlockHeight(2)
 	err = proxyFeeGrantKeeper.UseGrantedFees(ctx, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
 	require.EqualError(t, err, "fee grant is rate limited, please try again", "There should be an error regarding rate limiting")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
@@ -372,9 +377,10 @@ func TestProxyFeeGrant(t *testing.T) {
 	accountKeeper.ResetLogs()
 	gasTrackerKeeper.ResetLogs()
 
-	// Test 8: Block rate limiting is reached (Tx counter is greater than 2)
-	gasTrackerKeeper.BlockTxCouner = encodeHeightCounter(3, 3)
-	ctx = sdk.Context{}.WithBlockHeight(3)
+	// Test 8: Block rate limiting is reached (Gas counter + current gas limit exceeds the limit)
+	gasTrackerKeeper.BlockTxCouner = encodeHeightCounter(3, 200000)
+	ctx = createContext(t, storeKey)
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(200001)).WithBlockHeight(3)
 	err = proxyFeeGrantKeeper.UseGrantedFees(ctx, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
 	require.EqualError(t, err, "fee grant is rate limited, please try again", "There should be an error regarding rate limiting")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
@@ -393,7 +399,10 @@ func TestProxyFeeGrant(t *testing.T) {
 	gasTrackerKeeper.BlockTxCouner = nil
 
 	//Test 9: high fee
-	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, accountKeeper.Address, granteeAddress, highFee, validMsgs)
+	gasTrackerKeeper.BlockTxCouner = encodeHeightCounter(3, 200000)
+	ctx = createContext(t, storeKey)
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(200000)).WithBlockHeight(3)
+	err = proxyFeeGrantKeeper.UseGrantedFees(ctx, accountKeeper.Address, granteeAddress, highFee, validMsgs)
 	require.EqualError(t, err, "contract's reward is insufficient to cover for the fee", "There should be an error regarding high fee")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
 	require.Equal(t, gastracker.InflationRewardAccumulator, accountKeeper.ModuleCallAddressLogs[0], "the module name should be of the accumulator")
@@ -409,7 +418,10 @@ func TestProxyFeeGrant(t *testing.T) {
 	gasTrackerKeeper.ResetLogs()
 
 	// Test 10: Normal Fee, but the contract denies access to funds
-	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
+	gasTrackerKeeper.BlockTxCouner = encodeHeightCounter(3, 200000)
+	ctx = createContext(t, storeKey)
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(200000)).WithBlockHeight(3)
+	err = proxyFeeGrantKeeper.UseGrantedFees(ctx, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
 	require.EqualError(t, err, "fail sudo call", "contract should be denying access to the funds")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
 	require.Equal(t, gastracker.InflationRewardAccumulator, accountKeeper.ModuleCallAddressLogs[0], "the module name should be of the accumulator")
@@ -420,7 +432,7 @@ func TestProxyFeeGrant(t *testing.T) {
 		Address: contractAddress1,
 		Metadata: gstTypes.ContractInstanceSystemMetadata{
 			InflationBalance: normalFeeBalance,
-			BlockTxCounter:   encodeHeightCounter(0, 1),
+			BlockTxCounter:   encodeHeightCounter(3, 400000),
 		},
 	}, gasTrackerKeeper.SetContractMetadataCallLogs[0], "set contract metadata call should be with correct address and balance")
 	require.Equal(t, 1, len(wasmKeeper.SudoCallLogs), "there should be one sudo call to contract")
@@ -439,7 +451,11 @@ func TestProxyFeeGrant(t *testing.T) {
 	// Test 11: Everything is alright
 	wasmKeeper.FailSudoCall = false
 	gasTrackerKeeper.FailTxNonEligibleCall = false
-	err = proxyFeeGrantKeeper.UseGrantedFees(sdk.Context{}, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
+
+	gasTrackerKeeper.BlockTxCouner = encodeHeightCounter(3, 200000)
+	ctx = createContext(t, storeKey)
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(200000)).WithBlockHeight(3)
+	err = proxyFeeGrantKeeper.UseGrantedFees(ctx, accountKeeper.Address, granteeAddress, normalFee, validMsgs)
 	require.NoError(t, err, "There should not be an error")
 	require.Equal(t, 1, len(accountKeeper.ModuleCallAddressLogs), "there should be one call to get the module address")
 	require.Equal(t, gastracker.InflationRewardAccumulator, accountKeeper.ModuleCallAddressLogs[0], "the module name should be of the accumulator")
@@ -450,7 +466,7 @@ func TestProxyFeeGrant(t *testing.T) {
 		Address: contractAddress1,
 		Metadata: gstTypes.ContractInstanceSystemMetadata{
 			InflationBalance: normalFeeBalance,
-			BlockTxCounter:   encodeHeightCounter(0, 1),
+			BlockTxCounter:   encodeHeightCounter(3, 400000),
 		},
 	}, gasTrackerKeeper.SetContractMetadataCallLogs[0], "set contract metadata call should be with correct address and balance")
 	require.Equal(t, 1, len(wasmKeeper.SudoCallLogs), "there should be one sudo call to contract")
@@ -465,47 +481,101 @@ func TestProxyFeeGrant(t *testing.T) {
 }
 
 func TestRateLimitingFunc(t *testing.T) {
-	proxyFeeGrantkeeper := ProxyFeeGrantKeeper{}
+	storeKey := sdk.NewKVStoreKey("test")
+
+	proxyFeeGrantkeeper := ProxyFeeGrantKeeper{
+		storeKey: storeKey,
+	}
 
 	// Test 1: No rate limiting on check tx
-	isRateLimited, updatedMetadata := proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(2).WithIsCheckTx(true), gstTypes.ContractInstanceSystemMetadata{
+	ctx := createContext(t, storeKey)
+	isRateLimited, updatedMetadata := proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(2).WithIsCheckTx(true), gstTypes.ContractInstanceSystemMetadata{
 		BlockTxCounter: encodeHeightCounter(0, 0),
 	})
 	require.Equal(t, false, isRateLimited, "There should not be rate limiting")
 	require.Equal(t, encodeHeightCounter(0, 0), updatedMetadata.BlockTxCounter)
+	require.Equal(t, []byte(nil), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 
 	// Test 2: No rate limiting on recheck tx
-	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(2).WithIsReCheckTx(true), gstTypes.ContractInstanceSystemMetadata{
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(2).WithIsReCheckTx(true), gstTypes.ContractInstanceSystemMetadata{
 		BlockTxCounter: encodeHeightCounter(0, 0),
 	})
 	require.Equal(t, false, isRateLimited, "There should not be rate limiting")
 	require.Equal(t, encodeHeightCounter(0, 0), updatedMetadata.BlockTxCounter)
+	require.Equal(t, []byte(nil), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 
-	// Test 3: Rate limiting when block height is not multiple of 3
-	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(2), gstTypes.ContractInstanceSystemMetadata{
-		BlockTxCounter: encodeHeightCounter(0, 0),
+	// Test 3: Rate limiting when gas is more than max allowed global gas
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(800001))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(3), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(1, 100000),
 	})
 	require.Equal(t, true, isRateLimited, "There should be rate limiting")
-	require.Equal(t, encodeHeightCounter(0, 0), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(1, 100000), updatedMetadata.BlockTxCounter)
+	require.Equal(t, []byte(nil), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 
-	// Test 4: No rate limiting when block height is multiple of 3 and tx counter is outdated
-	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(3), gstTypes.ContractInstanceSystemMetadata{
-		BlockTxCounter: encodeHeightCounter(0, 3),
+	// Test 4: No Rate limiting when global gas limit is nil and local is within range
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(100000))
+	ctx.KVStore(storeKey).Delete([]byte(gstTypes.GlobalTxCounterKey))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(3), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(1, 100000),
 	})
-	require.Equal(t, false, isRateLimited, "There should not be any rate limiting")
-	require.Equal(t, encodeHeightCounter(3, 1), updatedMetadata.BlockTxCounter)
+	require.Equal(t, false, isRateLimited, "There should be no rate limiting")
+	require.Equal(t, encodeHeightCounter(3, 100000), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(3, 100000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 
-	// Test 5: No rate limiting when block height is multiple of 3 and tx counter is less than 3
-	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(3), gstTypes.ContractInstanceSystemMetadata{
-		BlockTxCounter: encodeHeightCounter(3, 1),
+	// Test 5: No rate limiting when block height is different
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(400000))
+	ctx.KVStore(storeKey).Set([]byte(gstTypes.GlobalTxCounterKey), encodeHeightCounter(1, 600000))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(3), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(1, 900000),
 	})
-	require.Equal(t, false, isRateLimited, "There should not be any rate limiting")
-	require.Equal(t, encodeHeightCounter(3, 2), updatedMetadata.BlockTxCounter)
+	require.Equal(t, false, isRateLimited, "There should be no rate limiting")
+	require.Equal(t, encodeHeightCounter(3, 400000), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(3, 400000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 
-	// Test 6: Rate limiting when block height is multiple of 3 and tx counter is greater than or equal to 3
-	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(sdk.Context{}.WithBlockHeight(3), gstTypes.ContractInstanceSystemMetadata{
-		BlockTxCounter: encodeHeightCounter(3, 3),
+	// Test 6: No rate limiting when global and local gas limit both are preserved
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(300000))
+	ctx.KVStore(storeKey).Set([]byte(gstTypes.GlobalTxCounterKey), encodeHeightCounter(1, 500000))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(1, 100000),
+	})
+	require.Equal(t, false, isRateLimited, "There should be no rate limiting")
+	require.Equal(t, encodeHeightCounter(1, 400000), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(1, 800000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
+
+	// Test 7: Rate limit when global gas limit is not preserved between multiple calls
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(400000))
+	ctx.KVStore(storeKey).Delete([]byte(gstTypes.GlobalTxCounterKey))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: nil,
+	})
+	require.Equal(t, false, isRateLimited, "There should be no rate limiting")
+	require.Equal(t, encodeHeightCounter(1, 400000), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(1, 400000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
+
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(400000))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: nil,
+	})
+	require.Equal(t, false, isRateLimited, "There should be no rate limiting")
+	require.Equal(t, encodeHeightCounter(1, 400000), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(1, 800000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
+
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(100000))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: nil,
 	})
 	require.Equal(t, true, isRateLimited, "There should be rate limiting")
-	require.Equal(t, encodeHeightCounter(3, 3), updatedMetadata.BlockTxCounter)
+	require.Equal(t, []byte(nil), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(1, 800000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
+
+	// Test 8: Rate limit when local gas limit is exceeded even when global limit is in range
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(100000))
+	ctx.KVStore(storeKey).Set([]byte(gstTypes.GlobalTxCounterKey), encodeHeightCounter(1, 500000))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(1, 400000),
+	})
+	require.Equal(t, true, isRateLimited, "There should be rate limiting")
+	require.Equal(t, encodeHeightCounter(1, 400000), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(1, 500000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 }
