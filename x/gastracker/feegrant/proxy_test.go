@@ -533,17 +533,7 @@ func TestRateLimitingFunc(t *testing.T) {
 	require.Equal(t, encodeHeightCounter(3, 400000), updatedMetadata.BlockTxCounter)
 	require.Equal(t, encodeHeightCounter(3, 400000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 
-	// Test 6: No rate limiting when global and local gas limit both are preserved
-	ctx = ctx.WithGasMeter(sdk.NewGasMeter(300000))
-	ctx.KVStore(storeKey).Set([]byte(gstTypes.GlobalTxCounterKey), encodeHeightCounter(1, 500000))
-	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
-		BlockTxCounter: encodeHeightCounter(1, 100000),
-	})
-	require.Equal(t, false, isRateLimited, "There should be no rate limiting")
-	require.Equal(t, encodeHeightCounter(1, 400000), updatedMetadata.BlockTxCounter)
-	require.Equal(t, encodeHeightCounter(1, 800000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
-
-	// Test 7: Rate limit when global gas limit is not preserved between multiple calls
+	// Test 6: Rate limit when global gas limit is not preserved between multiple calls
 	ctx = ctx.WithGasMeter(sdk.NewGasMeter(400000))
 	ctx.KVStore(storeKey).Delete([]byte(gstTypes.GlobalTxCounterKey))
 	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
@@ -569,7 +559,7 @@ func TestRateLimitingFunc(t *testing.T) {
 	require.Equal(t, []byte(nil), updatedMetadata.BlockTxCounter)
 	require.Equal(t, encodeHeightCounter(1, 800000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 
-	// Test 8: Rate limit when local gas limit is exceeded even when global limit is in range
+	// Test 7: Rate limit when local gas limit is exceeded even when global limit is in range
 	ctx = ctx.WithGasMeter(sdk.NewGasMeter(100000))
 	ctx.KVStore(storeKey).Set([]byte(gstTypes.GlobalTxCounterKey), encodeHeightCounter(1, 500000))
 	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
@@ -579,7 +569,7 @@ func TestRateLimitingFunc(t *testing.T) {
 	require.Equal(t, encodeHeightCounter(1, 400000), updatedMetadata.BlockTxCounter)
 	require.Equal(t, encodeHeightCounter(1, 500000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 
-	// Test 9: Rate limit when local gas limit is exceeded even when global limit is in range
+	// Test 8: Rate limit when local gas limit is exceeded even when global limit is in range
 	ctx = ctx.WithGasMeter(sdk.NewGasMeter(400001))
 	ctx.KVStore(storeKey).Set([]byte(gstTypes.GlobalTxCounterKey), encodeHeightCounter(1, 100000))
 	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
@@ -588,4 +578,24 @@ func TestRateLimitingFunc(t *testing.T) {
 	require.Equal(t, true, isRateLimited, "There should be rate limiting")
 	require.Equal(t, []byte(nil), updatedMetadata.BlockTxCounter)
 	require.Equal(t, encodeHeightCounter(1, 100000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
+
+	// Test 9: Rate limit when local gas limit is exceeded even when global limit is in range
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(200001))
+	ctx.KVStore(storeKey).Set([]byte(gstTypes.GlobalTxCounterKey), encodeHeightCounter(1, 100000))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(1, 200000),
+	})
+	require.Equal(t, true, isRateLimited, "There should be rate limiting")
+	require.Equal(t, encodeHeightCounter(1, 200000), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(1, 100000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
+
+	// Test 10: Both limits are in range
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(300000))
+	ctx.KVStore(storeKey).Set([]byte(gstTypes.GlobalTxCounterKey), encodeHeightCounter(1, 500000))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: encodeHeightCounter(1, 100000),
+	})
+	require.Equal(t, false, isRateLimited, "There should be rate limiting")
+	require.Equal(t, encodeHeightCounter(1, 400000), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(1, 800000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 }
