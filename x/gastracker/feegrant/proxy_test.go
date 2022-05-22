@@ -578,4 +578,14 @@ func TestRateLimitingFunc(t *testing.T) {
 	require.Equal(t, true, isRateLimited, "There should be rate limiting")
 	require.Equal(t, encodeHeightCounter(1, 400000), updatedMetadata.BlockTxCounter)
 	require.Equal(t, encodeHeightCounter(1, 500000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
+
+	// Test 9: Rate limit when local gas limit is exceeded even when global limit is in range
+	ctx = ctx.WithGasMeter(sdk.NewGasMeter(400001))
+	ctx.KVStore(storeKey).Set([]byte(gstTypes.GlobalTxCounterKey), encodeHeightCounter(1, 100000))
+	isRateLimited, updatedMetadata = proxyFeeGrantkeeper.isRequestRateLimited(ctx.WithBlockHeight(1), gstTypes.ContractInstanceSystemMetadata{
+		BlockTxCounter: nil,
+	})
+	require.Equal(t, true, isRateLimited, "There should be rate limiting")
+	require.Equal(t, []byte(nil), updatedMetadata.BlockTxCounter)
+	require.Equal(t, encodeHeightCounter(1, 100000), ctx.KVStore(storeKey).Get([]byte(gstTypes.GlobalTxCounterKey)))
 }
