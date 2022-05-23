@@ -713,6 +713,7 @@ func TestAddContractGasUsage(t *testing.T) {
 				Operation:      types.ContractOperation_CONTRACT_OPERATION_INSTANTIATION,
 			},
 		},
+		IsEligibleForRewards: true,
 	}, *blockTrackingObj.TxTrackingInfos[0])
 	require.Equal(t, types.TransactionTracking{
 		MaxGasAllowed:      6,
@@ -731,6 +732,7 @@ func TestAddContractGasUsage(t *testing.T) {
 				Operation:      types.ContractOperation_CONTRACT_OPERATION_SUDO,
 			},
 		},
+		IsEligibleForRewards: true,
 	}, *blockTrackingObj.TxTrackingInfos[1])
 
 	err = keeper.TrackNewBlock(ctx)
