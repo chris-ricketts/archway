@@ -36,6 +36,14 @@ type testGasTrackingKeeper struct {
 	SetContractMetadataCallLogs []setContractMetadataLog
 }
 
+func (t *testGasTrackingKeeper) GetMaxGlobalFeeGrant(ctx sdk.Context) uint64 {
+	return 800000
+}
+
+func (t *testGasTrackingKeeper) GetMaxLocalFeeGrant(ctx sdk.Context) uint64 {
+	return 400000
+}
+
 func (t *testGasTrackingKeeper) MarkCurrentTxNonEligibleForReward(ctx sdk.Context) error {
 	if t.FailTxNonEligibleCall {
 		return fmt.Errorf("fail tx non eligible call")
@@ -484,7 +492,8 @@ func TestRateLimitingFunc(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 
 	proxyFeeGrantkeeper := ProxyFeeGrantKeeper{
-		storeKey: storeKey,
+		storeKey:          storeKey,
+		gastrackingKeeper: &testGasTrackingKeeper{},
 	}
 
 	// Test 1: No rate limiting on check tx

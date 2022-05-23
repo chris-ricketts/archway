@@ -47,7 +47,8 @@ func (t *TestContractInfoView) AddContractToAdminMapping(contractAddress string,
 var _ ContractInfoView = &TestContractInfoView{}
 
 type subspace struct {
-	space map[string]bool
+	space  map[string]bool
+	params map[string]uint64
 }
 
 func (s *subspace) SetParamSet(ctx sdk.Context, paramset paramsTypes.ParamSet) {
@@ -56,10 +57,13 @@ func (s *subspace) SetParamSet(ctx sdk.Context, paramset paramsTypes.ParamSet) {
 		panic("[mock subspace]: invalid params type")
 	}
 	s.space[string(gstTypes.ParamsKeyGasTrackingSwitch)] = params.GasTrackingSwitch
-	s.space[string(gstTypes.ParamsKeyDappInflationRewards)] = params.GasDappInflationRewardsSwitch
+	s.space[string(gstTypes.ParamsKeyDappInflationRewardsSwitch)] = params.GasDappInflationRewardsSwitch
 	s.space[string(gstTypes.ParamsKeyGasRebateSwitch)] = params.GasRebateSwitch
 	s.space[string(gstTypes.ParamsKeyGasRebateToUserSwitch)] = params.GasRebateToUserSwitch
 	s.space[string(gstTypes.ParamsKeyContractPremiumSwitch)] = params.ContractPremiumSwitch
+
+	s.params[string(gstTypes.ParamsKeyMaxGasForGlobalGrant)] = params.MaxGasForGlobalFeeGrant
+	s.params[string(gstTypes.ParamsKeyMaxGasForLocalFeeGrant)] = params.MaxGasForLocalFeeGrant
 
 }
 func (s *subspace) Get(ctx sdk.Context, key []byte, ptr interface{}) {
@@ -95,7 +99,7 @@ func createTestBaseKeeperAndContext(t *testing.T, contractAdmin sdk.AccAddress) 
 		Time:   time.Date(2020, time.April, 22, 12, 0, 0, 0, time.UTC),
 	}, false, tmLog.NewTMLogger(os.Stdout))
 
-	params := gstTypes.DefaultParams()
+	params := gstTypes.DefaultParams(ctx)
 	subspace.SetParamSet(ctx, &params)
 	return ctx, &keeper
 }

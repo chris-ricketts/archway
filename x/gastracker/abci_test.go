@@ -286,7 +286,7 @@ func TestRewardCalculation(t *testing.T) {
 		rewardsB []sdk.DecCoin
 		logs     []*RewardTransferKeeperCallLogs
 	}
-	params := gstTypes.DefaultParams()
+
 	expected := expect{
 		rewardsA: []sdk.DecCoin{
 			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.2")),
@@ -306,7 +306,7 @@ func TestRewardCalculation(t *testing.T) {
 
 	ctx, keeper := createTestBaseKeeperAndContext(t, spareAddress[0])
 	ctx = ctx.WithBlockGasMeter(sdk.NewGasMeter(200000))
-
+	params := gstTypes.DefaultParams(ctx)
 	keeper.SetParams(ctx, params)
 
 	firstTxMaxContractReward := sdk.NewDecCoins(sdk.NewDecCoinFromDec("test", sdk.NewDec(1)), sdk.NewDecCoinFromDec("test1", sdk.NewDec(1).QuoInt64(3)))
@@ -443,7 +443,6 @@ func TestContractRewardsWithoutContractPremium(t *testing.T) {
 		rewardsB []sdk.DecCoin
 		logs     []*RewardTransferKeeperCallLogs
 	}
-	params := disableContractPremium(gstTypes.DefaultParams())
 	expected := expect{
 		rewardsA: []sdk.DecCoin{
 			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.2")),
@@ -463,6 +462,7 @@ func TestContractRewardsWithoutContractPremium(t *testing.T) {
 
 	ctx, keeper := createTestBaseKeeperAndContext(t, spareAddress[0])
 	ctx = ctx.WithBlockGasMeter(sdk.NewGasMeter(200000))
+	params := disableContractPremium(gstTypes.DefaultParams(ctx))
 	keeper.SetParams(ctx, params)
 
 	firstTxMaxContractReward := sdk.NewDecCoins(sdk.NewDecCoinFromDec("test", sdk.NewDec(1)), sdk.NewDecCoinFromDec("test1", sdk.NewDec(1).QuoInt64(3)))
@@ -598,7 +598,6 @@ func TestContractRewardsWithoutDappInflation(t *testing.T) {
 		rewardsB []sdk.DecCoin
 		logs     []*RewardTransferKeeperCallLogs
 	}
-	params := disableDappInflation(gstTypes.DefaultParams())
 	expected := expect{
 		rewardsA: []sdk.DecCoin{
 			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.2")),
@@ -617,7 +616,7 @@ func TestContractRewardsWithoutDappInflation(t *testing.T) {
 
 	ctx, keeper := createTestBaseKeeperAndContext(t, spareAddress[0])
 	ctx = ctx.WithBlockGasMeter(sdk.NewGasMeter(200000))
-
+	params := disableDappInflation(gstTypes.DefaultParams(ctx))
 	keeper.SetParams(ctx, params)
 
 	firstTxMaxContractReward := sdk.NewDecCoins(sdk.NewDecCoinFromDec("test", sdk.NewDec(1)), sdk.NewDecCoinFromDec("test1", sdk.NewDec(1).QuoInt64(3)))
@@ -753,7 +752,6 @@ func TestContractRewardsWithoutGasRebate(t *testing.T) {
 		rewardsB []sdk.DecCoin
 		logs     []*RewardTransferKeeperCallLogs
 	}
-	params := disableGasRebate(gstTypes.DefaultParams())
 	expected := expect{
 		logs: []*RewardTransferKeeperCallLogs{
 			createLogModule(authTypes.FeeCollectorName, gstTypes.InflationRewardAccumulator, sdk.NewCoins(sdk.NewCoin("test", sdk.NewInt(1)))),
@@ -762,7 +760,7 @@ func TestContractRewardsWithoutGasRebate(t *testing.T) {
 
 	ctx, keeper := createTestBaseKeeperAndContext(t, spareAddress[0])
 	ctx = ctx.WithBlockGasMeter(sdk.NewGasMeter(200000))
-
+	params := disableGasRebate(gstTypes.DefaultParams(ctx))
 	keeper.SetParams(ctx, params)
 
 	firstTxMaxContractReward := sdk.NewDecCoins(sdk.NewDecCoinFromDec("test", sdk.NewDec(1)), sdk.NewDecCoinFromDec("test1", sdk.NewDec(1).QuoInt64(3)))
@@ -891,7 +889,7 @@ func TestContractRewardWithoutGasRebateAndDappInflation(t *testing.T) {
 		rewardsB []sdk.DecCoin
 		logs     []*RewardTransferKeeperCallLogs
 	}
-	params := disableDappInflation(disableGasRebate(gstTypes.DefaultParams()))
+
 	expected := expect{
 		rewardsA: []sdk.DecCoin{},
 		rewardsB: []sdk.DecCoin{},
@@ -900,7 +898,7 @@ func TestContractRewardWithoutGasRebateAndDappInflation(t *testing.T) {
 
 	ctx, keeper := createTestBaseKeeperAndContext(t, spareAddress[0])
 	ctx = ctx.WithBlockGasMeter(sdk.NewGasMeter(200000))
-
+	params := disableDappInflation(disableGasRebate(gstTypes.DefaultParams(ctx)))
 	keeper.SetParams(ctx, params)
 
 	firstTxMaxContractReward := sdk.NewDecCoins(sdk.NewDecCoinFromDec("test", sdk.NewDec(1)), sdk.NewDecCoinFromDec("test1", sdk.NewDec(1).QuoInt64(3)))
@@ -1029,7 +1027,6 @@ func TestContractRewardsWithoutGasTracking(t *testing.T) {
 		rewardsB []sdk.DecCoin
 		logs     []*RewardTransferKeeperCallLogs
 	}
-	params := disableGasTracking(gstTypes.DefaultParams())
 	expected := expect{
 		rewardsA: []sdk.DecCoin{},
 		rewardsB: []sdk.DecCoin{},
@@ -1038,7 +1035,7 @@ func TestContractRewardsWithoutGasTracking(t *testing.T) {
 
 	ctx, keeper := createTestBaseKeeperAndContext(t, spareAddress[0])
 	ctx = ctx.WithBlockGasMeter(sdk.NewGasMeter(200000))
-
+	params := disableGasTracking(gstTypes.DefaultParams(ctx))
 	keeper.SetParams(ctx, params)
 
 	firstTxMaxContractReward := sdk.NewDecCoins(sdk.NewDecCoinFromDec("test", sdk.NewDec(1)), sdk.NewDecCoinFromDec("test1", sdk.NewDec(1).QuoInt64(3)))
@@ -1168,7 +1165,6 @@ func TestContractRewardsWithoutGasRebateToUser(t *testing.T) {
 		rewardsB []sdk.DecCoin
 		logs     []*RewardTransferKeeperCallLogs
 	}
-	params := disableGasRebateToUser(gstTypes.DefaultParams())
 	expected := expect{
 		rewardsA: []sdk.DecCoin{
 			sdk.NewDecCoinFromDec("test", sdk.MustNewDecFromStr("0.3")),
@@ -1188,7 +1184,7 @@ func TestContractRewardsWithoutGasRebateToUser(t *testing.T) {
 
 	ctx, keeper := createTestBaseKeeperAndContext(t, spareAddress[0])
 	ctx = ctx.WithBlockGasMeter(sdk.NewGasMeter(200000))
-
+	params := disableGasRebateToUser(gstTypes.DefaultParams(ctx))
 	keeper.SetParams(ctx, params)
 
 	firstTxMaxContractReward := sdk.NewDecCoins(sdk.NewDecCoinFromDec("test", sdk.NewDec(1)), sdk.NewDecCoinFromDec("test1", sdk.NewDec(1).QuoInt64(3)))

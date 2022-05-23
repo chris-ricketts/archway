@@ -2,6 +2,7 @@ package types
 
 import (
 	fmt "fmt"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"gopkg.in/yaml.v2"
@@ -9,14 +10,20 @@ import (
 
 const (
 	DefaultParamSpace = ModuleName
+
+	DefaultMaxGasForLocalFeeGrant  = 1000000
+	DefaultMaxGasForGlobalFeeGrant = 3000000
 )
 
 var (
-	ParamsKeyGasTrackingSwitch     = []byte("GasTrackingSwitch")
-	ParamsKeyDappInflationRewards  = []byte("DappInflationRewards")
-	ParamsKeyGasRebateSwitch       = []byte("GasRebateSwitch")
-	ParamsKeyGasRebateToUserSwitch = []byte("GasRebateToUserSwitch")
-	ParamsKeyContractPremiumSwitch = []byte("ContractPremiumSwitch")
+	ParamsKeyGasTrackingSwitch          = []byte("GasTrackingSwitch")
+	ParamsKeyDappInflationRewardsSwitch = []byte("DappInflationRewardsSwitch")
+	ParamsKeyGasRebateSwitch            = []byte("GasRebateSwitch")
+	ParamsKeyGasRebateToUserSwitch      = []byte("GasRebateToUserSwitch")
+	ParamsKeyContractPremiumSwitch      = []byte("ContractPremiumSwitch")
+
+	ParamsKeyMaxGasForLocalFeeGrant = []byte("MaxGasForLocalFeeGrant")
+	ParamsKeyMaxGasForGlobalGrant   = []byte("MaxGasForGlobalFeeGrant")
 )
 
 type Params struct {
@@ -25,6 +32,9 @@ type Params struct {
 	GasRebateSwitch               bool
 	GasRebateToUserSwitch         bool
 	ContractPremiumSwitch         bool
+
+	MaxGasForLocalFeeGrant  uint64
+	MaxGasForGlobalFeeGrant uint64
 }
 
 var (
@@ -37,14 +47,24 @@ var (
 
 var _ paramstypes.ParamSet = &Params{}
 
-func DefaultParams() Params {
-	return Params{
+func DefaultParams(ctx sdk.Context) Params {
+	defaultParams := Params{
 		GasTrackingSwitch:             DefaultGasTrackingSwitch,
 		GasDappInflationRewardsSwitch: GasDappInflationRewardsSwitch,
 		GasRebateSwitch:               DefaultGasRebateSwitch,
 		GasRebateToUserSwitch:         DefaultGasRebateToUserSwitch,
 		ContractPremiumSwitch:         DefaultContractPremiumSwitch,
 	}
+
+	if ctx.BlockGasMeter().Limit() == 0 {
+		defaultParams.MaxGasForGlobalFeeGrant = DefaultMaxGasForGlobalFeeGrant
+		defaultParams.MaxGasForLocalFeeGrant = DefaultMaxGasForLocalFeeGrant
+	} else {
+		defaultParams.MaxGasForGlobalFeeGrant = (ctx.BlockGasMeter().Limit() * 40) / 100
+		defaultParams.MaxGasForLocalFeeGrant = (ctx.BlockGasMeter().Limit() * 5) / 100
+	}
+
+	return defaultParams
 }
 
 func ParamKeyTable() paramstypes.KeyTable {
@@ -59,15 +79,24 @@ func (p Params) String() string {
 func (p *Params) ParamSetPairs() paramstypes.ParamSetPairs {
 	return paramstypes.ParamSetPairs{
 		paramstypes.NewParamSetPair(ParamsKeyGasTrackingSwitch, &p.GasTrackingSwitch, validateSwitch),
-		paramstypes.NewParamSetPair(ParamsKeyDappInflationRewards, &p.GasDappInflationRewardsSwitch, validateSwitch),
+		paramstypes.NewParamSetPair(ParamsKeyDappInflationRewardsSwitch, &p.GasDappInflationRewardsSwitch, validateSwitch),
 		paramstypes.NewParamSetPair(ParamsKeyGasRebateSwitch, &p.GasRebateSwitch, validateSwitch),
 		paramstypes.NewParamSetPair(ParamsKeyGasRebateToUserSwitch, &p.GasRebateToUserSwitch, validateSwitch),
 		paramstypes.NewParamSetPair(ParamsKeyContractPremiumSwitch, &p.ContractPremiumSwitch, validateSwitch),
+		paramstypes.NewParamSetPair(ParamsKeyMaxGasForGlobalGrant, &p.MaxGasForGlobalFeeGrant, validateUint64),
+		paramstypes.NewParamSetPair(ParamsKeyMaxGasForLocalFeeGrant, &p.MaxGasForLocalFeeGrant, validateUint64),
 	}
 }
 
 func validateSwitch(i interface{}) error {
 	if _, ok := i.(bool); !ok {
+		return fmt.Errorf("Invalid parameter type %T", i)
+	}
+	return nil
+}
+
+func validateUint64(i interface{}) error {
+	if _, ok := i.(uint64); !ok {
 		return fmt.Errorf("Invalid parameter type %T", i)
 	}
 	return nil

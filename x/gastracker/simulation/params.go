@@ -24,7 +24,7 @@ func ParamChanges(r *rand.Rand, cdc codec.Codec) []simtypes.ParamChange {
 				return fmt.Sprintf(`"%v"`, params.GasRebateSwitch)
 			},
 		),
-		simulation.NewSimParamChange(types.ModuleName, string(types.ParamsKeyDappInflationRewards),
+		simulation.NewSimParamChange(types.ModuleName, string(types.ParamsKeyDappInflationRewardsSwitch),
 			func(r *rand.Rand) string {
 				return fmt.Sprintf(`"%v"`, params.GasDappInflationRewardsSwitch)
 			},
