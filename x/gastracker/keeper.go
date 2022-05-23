@@ -52,9 +52,9 @@ type GasTrackingKeeper interface {
 	// IsContractPremiumEnabled gives a flag which describes whether contract premium is enabled or not
 	IsContractPremiumEnabled(ctx sdk.Context) bool
 
-	GetMaxGlobalFeeGrant(ctx sdk.Context) uint64
+	GetMaxGasForGlobalFeeGrant(ctx sdk.Context) uint64
 
-	GetMaxLocalFeeGrant(ctx sdk.Context) uint64
+	GetMaxGasForContractFeeGrant(ctx sdk.Context) uint64
 }
 
 type Keeper struct {

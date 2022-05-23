@@ -31,12 +31,12 @@ func (k Keeper) IsContractPremiumEnabled(ctx sdk.Context) (res bool) {
 	return
 }
 
-func (k Keeper) GetMaxGlobalFeeGrant(ctx sdk.Context) (res uint64) {
+func (k Keeper) GetMaxGasForGlobalFeeGrant(ctx sdk.Context) (res uint64) {
 	k.paramSpace.Get(ctx, gstTypes.ParamsKeyMaxGasForGlobalGrant, &res)
 	return
 }
 
-func (k Keeper) GetMaxLocalFeeGrant(ctx sdk.Context) (res uint64) {
-	k.paramSpace.Get(ctx, gstTypes.ParamsKeyMaxGasForLocalFeeGrant, &res)
+func (k Keeper) GetMaxGasForContractFeeGrant(ctx sdk.Context) (res uint64) {
+	k.paramSpace.Get(ctx, gstTypes.ParamsKeyMaxGasForContractFeeGrant, &res)
 	return
 }

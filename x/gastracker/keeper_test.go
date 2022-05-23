@@ -63,7 +63,7 @@ func (s *subspace) SetParamSet(ctx sdk.Context, paramset paramsTypes.ParamSet) {
 	s.space[string(gstTypes.ParamsKeyContractPremiumSwitch)] = params.ContractPremiumSwitch
 
 	s.params[string(gstTypes.ParamsKeyMaxGasForGlobalGrant)] = params.MaxGasForGlobalFeeGrant
-	s.params[string(gstTypes.ParamsKeyMaxGasForLocalFeeGrant)] = params.MaxGasForLocalFeeGrant
+	s.params[string(gstTypes.ParamsKeyMaxGasForContractFeeGrant)] = params.MaxGasForContractFeeGrant
 
 }
 func (s *subspace) Get(ctx sdk.Context, key []byte, ptr interface{}) {

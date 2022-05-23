@@ -22,8 +22,8 @@ var (
 	ParamsKeyGasRebateToUserSwitch      = []byte("GasRebateToUserSwitch")
 	ParamsKeyContractPremiumSwitch      = []byte("ContractPremiumSwitch")
 
-	ParamsKeyMaxGasForLocalFeeGrant = []byte("MaxGasForLocalFeeGrant")
-	ParamsKeyMaxGasForGlobalGrant   = []byte("MaxGasForGlobalFeeGrant")
+	ParamsKeyMaxGasForContractFeeGrant = []byte("MaxGasForContractFeeGrant")
+	ParamsKeyMaxGasForGlobalGrant      = []byte("MaxGasForGlobalFeeGrant")
 )
 
 type Params struct {
@@ -33,8 +33,8 @@ type Params struct {
 	GasRebateToUserSwitch         bool
 	ContractPremiumSwitch         bool
 
-	MaxGasForLocalFeeGrant  uint64
-	MaxGasForGlobalFeeGrant uint64
+	MaxGasForContractFeeGrant uint64
+	MaxGasForGlobalFeeGrant   uint64
 }
 
 var (
@@ -58,10 +58,10 @@ func DefaultParams(ctx sdk.Context) Params {
 
 	if ctx.BlockGasMeter().Limit() == 0 {
 		defaultParams.MaxGasForGlobalFeeGrant = DefaultMaxGasForGlobalFeeGrant
-		defaultParams.MaxGasForLocalFeeGrant = DefaultMaxGasForLocalFeeGrant
+		defaultParams.MaxGasForContractFeeGrant = DefaultMaxGasForLocalFeeGrant
 	} else {
 		defaultParams.MaxGasForGlobalFeeGrant = (ctx.BlockGasMeter().Limit() * 40) / 100
-		defaultParams.MaxGasForLocalFeeGrant = (ctx.BlockGasMeter().Limit() * 5) / 100
+		defaultParams.MaxGasForContractFeeGrant = (ctx.BlockGasMeter().Limit() * 5) / 100
 	}
 
 	return defaultParams
@@ -84,7 +84,7 @@ func (p *Params) ParamSetPairs() paramstypes.ParamSetPairs {
 		paramstypes.NewParamSetPair(ParamsKeyGasRebateToUserSwitch, &p.GasRebateToUserSwitch, validateSwitch),
 		paramstypes.NewParamSetPair(ParamsKeyContractPremiumSwitch, &p.ContractPremiumSwitch, validateSwitch),
 		paramstypes.NewParamSetPair(ParamsKeyMaxGasForGlobalGrant, &p.MaxGasForGlobalFeeGrant, validateUint64),
-		paramstypes.NewParamSetPair(ParamsKeyMaxGasForLocalFeeGrant, &p.MaxGasForLocalFeeGrant, validateUint64),
+		paramstypes.NewParamSetPair(ParamsKeyMaxGasForContractFeeGrant, &p.MaxGasForContractFeeGrant, validateUint64),
 	}
 }
 

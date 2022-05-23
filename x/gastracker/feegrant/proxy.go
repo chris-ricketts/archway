@@ -147,19 +147,19 @@ func (p *ProxyFeeGrantKeeper) isRequestRateLimited(ctx sdk.Context, metadata typ
 	}
 
 	globalTxCounterEncoded := store.Get([]byte(types.GlobalTxCounterKey))
-	updatedGlobalTxCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), globalTxCounterEncoded, p.gastrackingKeeper.GetMaxGlobalFeeGrant(ctx))
+	updatedGlobalGasCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), globalTxCounterEncoded, p.gastrackingKeeper.GetMaxGlobalFeeGrant(ctx))
 	if err != nil {
 		return true, metadata
 	}
 
-	updatedLocalTxCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), metadata.BlockTxCounter, p.gastrackingKeeper.GetMaxLocalFeeGrant(ctx))
+	updatedLocalGasCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), metadata.GasCounter, p.gastrackingKeeper.GetMaxLocalFeeGrant(ctx))
 	if err != nil {
 		return true, metadata
 	}
 
 	// Update counters
-	store.Set([]byte(types.GlobalTxCounterKey), updatedGlobalTxCounter)
-	metadata.BlockTxCounter = updatedLocalTxCounter
+	store.Set([]byte(types.GlobalTxCounterKey), updatedGlobalGasCounter)
+	metadata.GasCounter = updatedLocalGasCounter
 
 	return false, metadata
 }

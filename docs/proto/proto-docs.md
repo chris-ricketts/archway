@@ -106,7 +106,7 @@ Contract instance system level metadata, not updatable externally.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | `inflation_balance` | [cosmos.base.v1beta1.DecCoin](#cosmos.base.v1beta1.DecCoin) | repeated | Inflation reward balance of this contract instance. |
-| `block_tx_counter` | [bytes](#bytes) |  |  |
+| `gas_counter` | [bytes](#bytes) |  |  |
 
 
 
