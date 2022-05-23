@@ -25,8 +25,8 @@ type GasTrackingKeeperFeeGrantView interface {
 	MarkCurrentTxNonEligibleForReward(ctx sdk.Context) error
 	GetContractSystemMetadata(ctx sdk.Context, address sdk.AccAddress) (types.ContractInstanceSystemMetadata, error)
 	SetContractSystemMetadata(ctx sdk.Context, address sdk.AccAddress, metadata types.ContractInstanceSystemMetadata) error
-	GetMaxGlobalFeeGrant(ctx sdk.Context) uint64
-	GetMaxLocalFeeGrant(ctx sdk.Context) uint64
+	GetMaxGasForGlobalFeeGrant(ctx sdk.Context) uint64
+	GetMaxGasForContractFeeGrant(ctx sdk.Context) uint64
 }
 
 type WasmKeeperFeeGrantView interface {
@@ -147,12 +147,12 @@ func (p *ProxyFeeGrantKeeper) isRequestRateLimited(ctx sdk.Context, metadata typ
 	}
 
 	globalTxCounterEncoded := store.Get([]byte(types.GlobalTxCounterKey))
-	updatedGlobalGasCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), globalTxCounterEncoded, p.gastrackingKeeper.GetMaxGlobalFeeGrant(ctx))
+	updatedGlobalGasCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), globalTxCounterEncoded, p.gastrackingKeeper.GetMaxGasForGlobalFeeGrant(ctx))
 	if err != nil {
 		return true, metadata
 	}
 
-	updatedLocalGasCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), metadata.GasCounter, p.gastrackingKeeper.GetMaxLocalFeeGrant(ctx))
+	updatedLocalGasCounter, err := p.tryUpdateCounter(ctx.BlockHeight(), ctx.GasMeter().Limit(), metadata.GasCounter, p.gastrackingKeeper.GetMaxGasForContractFeeGrant(ctx))
 	if err != nil {
 		return true, metadata
 	}

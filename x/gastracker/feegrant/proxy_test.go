@@ -36,11 +36,11 @@ type testGasTrackingKeeper struct {
 	SetContractMetadataCallLogs []setContractMetadataLog
 }
 
-func (t *testGasTrackingKeeper) GetMaxGlobalFeeGrant(ctx sdk.Context) uint64 {
+func (t *testGasTrackingKeeper) GetMaxGasForGlobalFeeGrant(ctx sdk.Context) uint64 {
 	return 800000
 }
 
-func (t *testGasTrackingKeeper) GetMaxLocalFeeGrant(ctx sdk.Context) uint64 {
+func (t *testGasTrackingKeeper) GetMaxGasForContractFeeGrant(ctx sdk.Context) uint64 {
 	return 400000
 }
 
