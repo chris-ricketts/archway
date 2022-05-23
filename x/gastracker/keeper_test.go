@@ -84,7 +84,7 @@ func createTestBaseKeeperAndContext(t *testing.T, contractAdmin sdk.AccAddress) 
 	encodingConfig := simapp.MakeTestEncodingConfig()
 	appCodec := encodingConfig.Marshaler
 
-	subspace := subspace{space: make(map[string]bool)}
+	subspace := subspace{space: make(map[string]bool), params: make(map[string]uint64)}
 
 	keeper := Keeper{
 		key:              storeKey,
@@ -98,6 +98,7 @@ func createTestBaseKeeperAndContext(t *testing.T, contractAdmin sdk.AccAddress) 
 		Height: 1234567,
 		Time:   time.Date(2020, time.April, 22, 12, 0, 0, 0, time.UTC),
 	}, false, tmLog.NewTMLogger(os.Stdout))
+	ctx = ctx.WithBlockGasMeter(sdk.NewInfiniteGasMeter())
 
 	params := gstTypes.DefaultParams(ctx)
 	subspace.SetParamSet(ctx, &params)

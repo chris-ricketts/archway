@@ -12,7 +12,7 @@ func TestSetParams(t *testing.T) {
 	ctx, keeper := createTestBaseKeeperAndContext(t, sdk.AccAddress{})
 
 	// Initialize default values
-	params := gstTypes.DefaultParams()
+	params := gstTypes.DefaultParams(ctx)
 	keeper.SetParams(ctx, params)
 
 	// Retrieve default values
