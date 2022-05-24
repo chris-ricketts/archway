@@ -102,12 +102,15 @@ enum WasmMsgType {
 
 // wasm message sent in a tx
 message WasmMsg {
-  WasmMsgType type = 1;
+  WasmMsgType msg_type = 1;
   bytes data = 2;
 }
 
-// special sudo message to be handled by contract
-message ContractValidFeeGranteeMsg {
+// special sudo message to be sent to contract
+message ContractValidFeeGranteeMsg { ValidateFeeGrant validate_fee_grant = 1; }
+
+// special sudo payload to be handled by contract
+message ValidateFeeGrant {
   string grantee = 1;
   repeated cosmos.base.v1beta1.Coin gas_fee_to_grant = 2;
   repeated WasmMsg msgs = 3;

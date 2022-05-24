@@ -15,6 +15,7 @@
     - [LeftOverRewardEntry](#archway.gastracker.v1.LeftOverRewardEntry)
     - [RewardDistributionEvent](#archway.gastracker.v1.RewardDistributionEvent)
     - [TransactionTracking](#archway.gastracker.v1.TransactionTracking)
+    - [ValidateFeeGrant](#archway.gastracker.v1.ValidateFeeGrant)
     - [WasmMsg](#archway.gastracker.v1.WasmMsg)
   
     - [ContractOperation](#archway.gastracker.v1.ContractOperation)
@@ -135,14 +136,12 @@ Event emitted when contract reward is calculated
 <a name="archway.gastracker.v1.ContractValidFeeGranteeMsg"></a>
 
 ### ContractValidFeeGranteeMsg
-special sudo message to be handled by contract
+special sudo message to be sent to contract
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `grantee` | [string](#string) |  |  |
-| `gas_fee_to_grant` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) | repeated |  |
-| `msgs` | [WasmMsg](#archway.gastracker.v1.WasmMsg) | repeated |  |
+| `validate_fee_grant` | [ValidateFeeGrant](#archway.gastracker.v1.ValidateFeeGrant) |  |  |
 
 
 
@@ -209,6 +208,23 @@ Tracking contract gas usage and total gas consumption per transaction
 
 
 
+<a name="archway.gastracker.v1.ValidateFeeGrant"></a>
+
+### ValidateFeeGrant
+special sudo payload to be handled by contract
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `grantee` | [string](#string) |  |  |
+| `gas_fee_to_grant` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) | repeated |  |
+| `msgs` | [WasmMsg](#archway.gastracker.v1.WasmMsg) | repeated |  |
+
+
+
+
+
+
 <a name="archway.gastracker.v1.WasmMsg"></a>
 
 ### WasmMsg
@@ -217,7 +233,7 @@ wasm message sent in a tx
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `type` | [WasmMsgType](#archway.gastracker.v1.WasmMsgType) |  |  |
+| `msg_type` | [WasmMsgType](#archway.gastracker.v1.WasmMsgType) |  |  |
 | `data` | [bytes](#bytes) |  |  |
 
 

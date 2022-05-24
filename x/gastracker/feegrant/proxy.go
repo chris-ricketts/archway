@@ -53,8 +53,8 @@ func (p *ProxyFeeGrantKeeper) extractContractAddressAndMsg(msg sdk.Msg) (sdk.Acc
 			return nil, types.WasmMsg{}, err
 		}
 		return addr, types.WasmMsg{
-			Type: types.WasmMsgType_WASM_MSG_TYPE_EXECUTE,
-			Data: msg.Msg,
+			MsgType: types.WasmMsgType_WASM_MSG_TYPE_EXECUTE,
+			Data:    msg.Msg,
 		}, nil
 	case *wasm.MsgMigrateContract:
 		addr, err := sdk.AccAddressFromBech32(msg.Contract)
@@ -62,8 +62,8 @@ func (p *ProxyFeeGrantKeeper) extractContractAddressAndMsg(msg sdk.Msg) (sdk.Acc
 			return nil, types.WasmMsg{}, err
 		}
 		return addr, types.WasmMsg{
-			Type: types.WasmMsgType_WASM_MSG_TYPE_MIGRATE,
-			Data: msg.Msg,
+			MsgType: types.WasmMsgType_WASM_MSG_TYPE_MIGRATE,
+			Data:    msg.Msg,
 		}, nil
 	default:
 		return nil, types.WasmMsg{}, fmt.Errorf("only contract invoking messages should be in the tx")
@@ -199,9 +199,11 @@ func (p *ProxyFeeGrantKeeper) UseGrantedFees(ctx sdk.Context, granter, grantee s
 	}
 
 	sudoMsg := types.ContractValidFeeGranteeMsg{
-		Grantee:       grantee.String(),
-		GasFeeToGrant: protoFees,
-		Msgs:          wasmMsgs,
+		ValidateFeeGrant: &types.ValidateFeeGrant{
+			Grantee:       grantee.String(),
+			GasFeeToGrant: protoFees,
+			Msgs:          wasmMsgs,
+		},
 	}
 
 	jsonMsg, err := json.Marshal(sudoMsg)
