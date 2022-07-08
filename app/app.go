@@ -11,7 +11,6 @@ import (
 	wasmdKeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
 	wasmdTypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	cosmwasm "github.com/CosmWasm/wasmvm"
-
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -124,7 +123,7 @@ var (
 	// EnableSpecificProposals If set to non-empty string it must be comma-separated list of values that are all a subset
 	// of "EnableAllProposals" (takes precedence over ProposalsEnabled)
 	// https://github.com/CosmWasm/wasmd/blob/02a54d33ff2c064f3539ae12d75d027d9c665f05/x/wasm/internal/types/proposal.go#L28-L34
-	EnableSpecificProposals = ""
+	EnableSpecificProposals = "SudoContract"
 )
 
 // GetEnabledProposals parses the ProposalsEnabled / EnableSpecificProposals values to
@@ -795,6 +794,44 @@ func (app *ArchwayApp) RegisterTendermintService(clientCtx client.Context) {
 
 func (app *ArchwayApp) AppCodec() codec.Codec {
 	return app.appCodec
+}
+
+// TestChain functions used by E2E tests
+
+func (app *ArchwayApp) GetBaseApp() *baseapp.BaseApp {
+	return app.BaseApp
+}
+
+func (app *ArchwayApp) GetAccountKeeper() authkeeper.AccountKeeper {
+	return app.accountKeeper
+}
+
+func (app *ArchwayApp) GetBankKeeper() bankkeeper.Keeper {
+	return app.bankKeeper
+}
+
+func (app *ArchwayApp) GetStakingKeeper() stakingkeeper.Keeper {
+	return app.stakingKeeper
+}
+
+func (app *ArchwayApp) GetGovKeeper() govkeeper.Keeper {
+	return app.govKeeper
+}
+
+func (app *ArchwayApp) GetIBCKeeper() *ibckeeper.Keeper {
+	return app.ibcKeeper
+}
+
+func (app *ArchwayApp) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
+	return app.scopedIBCKeeper
+}
+
+func (app *ArchwayApp) GetGasTrackerKeeper() gastrackerkeeper.GasTrackingKeeper {
+	return app.gastrackingKeeper
+}
+
+func (app *ArchwayApp) GetWasmKeeper() wasm.Keeper {
+	return app.wasmKeeper
 }
 
 // RegisterSwaggerAPI registers swagger route with API Server
